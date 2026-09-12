@@ -1,0 +1,107 @@
+.bracket-scroll {
+  margin-bottom: 24px;
+}
+
+.bracket-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.bracket-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bracket-col-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-align: center;
+  padding: 0 4px 8px;
+}
+
+.bracket-col--final .bracket-col-label {
+  color: var(--gold, #ffd60a);
+}
+
+.bracket-col-matches {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 4px;
+}
+
+/* Match card */
+.bm {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.bm--active {
+  border-color: var(--accent, #e63946);
+  box-shadow: 0 0 0 1px var(--accent, #e63946), 0 2px 12px rgba(230, 57, 70, 0.25);
+}
+
+.bm--final {
+  border-color: var(--gold, #ffd60a);
+  box-shadow: 0 0 0 1px var(--gold, #ffd60a), 0 2px 12px rgba(255, 214, 10, 0.2);
+}
+
+.bm-divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* Artist row */
+.bm-artist {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 0.73rem;
+  font-weight: 500;
+  line-height: 1.2;
+  min-height: 28px;
+}
+
+.bm-artist--winner {
+  background: rgba(230, 57, 70, 0.1);
+  color: var(--accent, #e63946);
+}
+
+.bm-artist--loser {
+  color: var(--text2);
+  opacity: 0.45;
+}
+
+.bm-artist--tbd {
+  color: var(--text2);
+  font-style: italic;
+  opacity: 0.5;
+}
+
+.bm-artist-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bm--empty {
+  opacity: 0.3;
+  border-style: dashed;
+}
+
+.bm-check {
+  color: var(--accent, #e63946);
+  font-size: 0.65rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}

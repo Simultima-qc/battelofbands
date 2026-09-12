@@ -1,0 +1,204 @@
+.tp { max-width: 1400px; margin: 0 auto; }
+
+.tp-loading, .tp-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 0;
+}
+
+.tp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tp-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tp-category {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.8rem;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+
+.tp-round {
+  font-size: 0.85rem;
+  color: var(--text2);
+  font-weight: 500;
+}
+
+/* ── Compact Vote Panel ── */
+.compact-vote {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-top: 8px;
+}
+
+.compact-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.compact-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.compact-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.compact-progress-label {
+  font-size: 0.78rem;
+  color: var(--text2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.compact-instruction {
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--text2);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.compact-cards {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.compact-vs {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.6rem;
+  color: var(--accent);
+  text-align: center;
+  padding: 0 4px;
+}
+
+.compact-artist {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg3);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: left;
+  overflow: hidden;
+  min-height: 64px;
+}
+
+.compact-artist:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(230, 57, 70, 0.06);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(230, 57, 70, 0.18);
+}
+
+.compact-artist:hover:not(:disabled) .compact-vote-label {
+  opacity: 1;
+}
+
+.compact-artist:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.compact-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg2);
+  border: 2px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.compact-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.compact-initials {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.1rem;
+  color: var(--text2);
+}
+
+.compact-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.compact-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-country {
+  font-size: 0.75rem;
+  color: var(--text2);
+}
+
+.compact-genre {
+  font-size: 0.72rem;
+  color: var(--text2);
+  opacity: 0.7;
+}
+
+.compact-vote-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(230, 57, 70, 0.1);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.95rem;
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+}
+
+@media (max-width: 700px) {
+  .compact-cards {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  .compact-vs { font-size: 1.2rem; text-align: center; }
+}
