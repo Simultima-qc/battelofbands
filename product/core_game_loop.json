@@ -1,0 +1,104 @@
+{
+  "contract_version": "1.0.0",
+  "status": "MVP_PRODUCT_HYPOTHESIS",
+  "product": "Battle of Bands",
+  "core_loop": [
+    "CHOOSE_CATEGORY",
+    "PLAY_HEAD_TO_HEAD_DUELS",
+    "COMPLETE_BRACKET",
+    "REVIEW_PERSONAL_RESULT",
+    "REPLAY"
+  ],
+  "default_session": {
+    "artists": 16,
+    "decisions": 15,
+    "rounds": 4,
+    "round_labels": [
+      "Round of 16",
+      "Quarterfinals",
+      "Semifinals",
+      "Final"
+    ],
+    "user_selectable_bracket_size": false
+  },
+  "category_eligibility": {
+    "dimensions": [
+      "genre",
+      "country",
+      "language"
+    ],
+    "minimum_unique_eligible_artists": 16,
+    "hide_ineligible_category_values": true,
+    "allow_smaller_implicit_bracket": false
+  },
+  "artist_eligibility": {
+    "requires_non_empty_name": true,
+    "requires_category_match": true,
+    "known_duplicate_record_allowed": false,
+    "image_required": false
+  },
+  "selection_policy": {
+    "goal": "RECOGNITION_FIRST_WITH_CONTROLLED_SURPRISE",
+    "method": "POPULARITY_WEIGHTED_RANDOM_WITHOUT_REPLACEMENT",
+    "deterministic_top_n": false,
+    "uniform_random": false,
+    "reuse_existing_weighted_sampling_concept": true
+  },
+  "match_interaction": {
+    "prompt": "Which artist do you prefer?",
+    "interaction": "ONE_FORCED_BINARY_CHOICE",
+    "skip_allowed": false,
+    "tie_allowed": false,
+    "rating_scale": false,
+    "explanation_required": false,
+    "immediate_next_match": true
+  },
+  "end_result": {
+    "required": [
+      "CHAMPION",
+      "FINALIST",
+      "TOP_4",
+      "CATEGORY",
+      "COMPLETED_BRACKET"
+    ],
+    "full_taste_profile_required": false
+  },
+  "replay_loop": {
+    "primary_action": "PLAY_ANOTHER_TOURNAMENT",
+    "allow_same_or_new_category": true
+  },
+  "ranking_semantics": {
+    "personal_result": "CURRENT_TOURNAMENT_RESULT",
+    "aggregate_ranking": "CURRENT_APP_INSTANCE_AGGREGATE",
+    "world_ranking_label_allowed": false
+  },
+  "completion_accounting": {
+    "tournaments_played_increment_event": "TOURNAMENT_COMPLETED",
+    "abandoned_tournament_counts_as_played": false
+  },
+  "future_measurement_events": [
+    "tournament_started",
+    "tournament_completed",
+    "votes_cast",
+    "last_completed_round",
+    "immediate_replay",
+    "category_type",
+    "category_value"
+  ],
+  "non_goals": [
+    "ACCOUNTS_AUTH",
+    "COMMUNITY_SOCIAL_FEATURES",
+    "MULTIPLAYER",
+    "COMMENTS",
+    "SPOTIFY_APPLE_MUSIC_INTEGRATION",
+    "AUDIO_PREVIEWS",
+    "RECOMMENDATION_ENGINE",
+    "FULL_PERSONAL_TASTE_PROFILE",
+    "VARIABLE_TOURNAMENT_SIZES",
+    "MONETIZATION",
+    "LARGE_VISUAL_REDESIGN",
+    "PUBLIC_DEPLOYMENT",
+    "ANALYTICS_IMPLEMENTATION"
+  ],
+  "interpretation": "This contract defines the MVP product hypothesis. It is not evidence that 16 artists is optimal; that must be validated through future usage."
+}
