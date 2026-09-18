@@ -5,7 +5,7 @@ export const translations = {
     'nav.activeTournament': '🏆 Tournoi en cours',
 
     // HomePage
-    'home.subtitle': 'Choisis une catégorie, affrontes 32 artistes et désigne ton champion !',
+    'home.subtitle': 'Choisis une catégorie, affronte 16 artistes et désigne ton champion !',
     'home.resume.message': 'Tu as un tournoi en cours !',
     'home.resume.button': 'Reprendre',
     'home.error.categories': 'Impossible de charger les catégories.',
@@ -41,7 +41,13 @@ export const translations = {
 
     // WinnerScreen
     'winner.title': 'Champion !',
-    'winner.button.new': '🎸 Nouveau tournoi',
+    'winner.category': 'Catégorie :',
+    'winner.finalist': 'Finaliste',
+    'winner.top4': 'Top 4',
+    'winner.bracket': 'Bracket complété',
+    'winner.button.new': '🎸 Jouer un autre tournoi',
+    'winner.button.replay': '↻ Rejouer cette catégorie',
+    'winner.button.replaying': 'Génération...',
     'winner.link.rankings': 'Voir le classement',
 
     // Rankings
@@ -64,7 +70,7 @@ export const translations = {
     'nav.rankings': 'Rankings',
     'nav.activeTournament': '🏆 Tournament in progress',
 
-    'home.subtitle': 'Pick a category, face 32 artists, and crown your champion!',
+    'home.subtitle': 'Pick a category, face 16 artists, and crown your champion!',
     'home.resume.message': 'You have a tournament in progress!',
     'home.resume.button': 'Resume',
     'home.error.categories': 'Failed to load categories.',
@@ -96,7 +102,13 @@ export const translations = {
     'match.vote': '✓ Vote',
 
     'winner.title': 'Champion!',
-    'winner.button.new': '🎸 New tournament',
+    'winner.category': 'Category:',
+    'winner.finalist': 'Finalist',
+    'winner.top4': 'Top 4',
+    'winner.bracket': 'Completed bracket',
+    'winner.button.new': '🎸 Play another tournament',
+    'winner.button.replay': '↻ Replay this category',
+    'winner.button.replaying': 'Generating...',
     'winner.link.rankings': 'View rankings',
 
     'rankings.title': '🏆 World Rankings',
@@ -118,7 +130,7 @@ export const translations = {
     'nav.rankings': 'Clasificación',
     'nav.activeTournament': '🏆 Torneo en curso',
 
-    'home.subtitle': '¡Elige una categoría, enfrenta 32 artistas y corona a tu campeón!',
+    'home.subtitle': '¡Elige una categoría, enfrenta 16 artistas y corona a tu campeón!',
     'home.resume.message': '¡Tienes un torneo en curso!',
     'home.resume.button': 'Reanudar',
     'home.error.categories': 'No se pudieron cargar las categorías.',
@@ -150,7 +162,13 @@ export const translations = {
     'match.vote': '✓ Votar',
 
     'winner.title': '¡Campeón!',
-    'winner.button.new': '🎸 Nuevo torneo',
+    'winner.category': 'Categoría:',
+    'winner.finalist': 'Finalista',
+    'winner.top4': 'Top 4',
+    'winner.bracket': 'Cuadro completado',
+    'winner.button.new': '🎸 Jugar otro torneo',
+    'winner.button.replay': '↻ Repetir esta categoría',
+    'winner.button.replaying': 'Generando...',
     'winner.link.rankings': 'Ver clasificación',
 
     'rankings.title': '🏆 Clasificación mundial',
