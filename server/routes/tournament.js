@@ -16,13 +16,13 @@ const {
 
 /**
  * Points awarded for winning a match in each round.
- * Round indices are 1-based (round 1 … round 5).
+ * Round indices are 1-based (round 1 … round 4 for the 16-artist MVP).
  */
 const ROUND_POINTS = {
-  1: 2,  // round of 16
-  2: 4,  // quarter-finals
-  3: 8,  // semi-finals
-  4: 16, // final
+  1: 1, // round of 16
+  2: 2, // quarter-finals
+  3: 4, // semi-finals
+  4: 8, // final
 };
 
 /** Bonus points awarded to the overall tournament winner (on top of the final win). */
