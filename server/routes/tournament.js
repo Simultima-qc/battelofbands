@@ -4,6 +4,11 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db/database');
+const {
+  MVP_BRACKET_SIZE,
+  dedupeArtistsByName,
+  weightedSampleWithoutReplacement,
+} = require('../lib/artistSelection');
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -122,6 +127,44 @@ function awardMatchPoints(db, winnerId, round) {
   if (updates.updateFinals)   updates.updateFinals.run(winnerId);
 }
 
+
+function applyCompletedTournamentRankings(db, tournamentId, championId) {
+  const participants = db.prepare(`
+    SELECT artist1_id AS artist_id
+    FROM tournament_matches
+    WHERE tournament_id = ? AND round = 1
+    UNION
+    SELECT artist2_id AS artist_id
+    FROM tournament_matches
+    WHERE tournament_id = ? AND round = 1
+  `).all(tournamentId, tournamentId);
+
+  const completedMatches = db.prepare(`
+    SELECT round, winner_id
+    FROM tournament_matches
+    WHERE tournament_id = ? AND winner_id IS NOT NULL
+    ORDER BY round ASC, match_index ASC
+  `).all(tournamentId);
+
+  const incPlayed = db.prepare(`
+    UPDATE rankings
+    SET tournaments_played = tournaments_played + 1
+    WHERE artist_id = ?
+  `);
+
+  for (const participant of participants) {
+    incPlayed.run(participant.artist_id);
+  }
+
+  for (const match of completedMatches) {
+    awardMatchPoints(db, match.winner_id, match.round);
+  }
+
+  db.prepare(`
+    UPDATE rankings SET points = points + ? WHERE artist_id = ?
+  `).run(WINNER_BONUS, championId);
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/tournament/start
 // Body: { user_session, category_type, category_value, artist_ids? }
@@ -138,52 +181,43 @@ router.post('/start', (req, res) => {
   }
 
   // Resolve artist pool -------------------------------------------------------
-  let artists;
+  let pool;
 
-  if (Array.isArray(artist_ids) && artist_ids.length >= 2) {
-    // Caller pre-selected the artists
+  if (Array.isArray(artist_ids) && artist_ids.length > 0) {
     const placeholders = artist_ids.map(() => '?').join(',');
-    artists = db
-      .prepare(`SELECT id, name FROM artists WHERE id IN (${placeholders})`)
+    pool = db
+      .prepare(`SELECT id, name, popularity FROM artists WHERE id IN (${placeholders})`)
       .all(...artist_ids);
   } else {
-    // Auto-select 32 random artists from the category
     const val = category_value.toLowerCase();
-    let pool;
 
     if (category_type === 'genre') {
-      pool = db.prepare(`SELECT id, name FROM artists WHERE LOWER(genres) LIKE ?`).all(`%"${val}"%`);
+      pool = db
+        .prepare(`SELECT id, name, popularity FROM artists WHERE LOWER(genres) LIKE ?`)
+        .all(`%"${val}"%`);
     } else if (category_type === 'country') {
-      pool = db.prepare(`SELECT id, name FROM artists WHERE LOWER(country) = ?`).all(val);
+      pool = db
+        .prepare(`SELECT id, name, popularity FROM artists WHERE LOWER(country) = ?`)
+        .all(val);
     } else if (category_type === 'language') {
-      pool = db.prepare(`SELECT id, name FROM artists WHERE LOWER(language) = ?`).all(val);
+      pool = db
+        .prepare(`SELECT id, name, popularity FROM artists WHERE LOWER(language) = ?`)
+        .all(val);
     } else {
-      pool = db.prepare(`SELECT id, name FROM artists`).all();
+      return res.status(400).json({ error: `Unknown category_type: ${category_type}` });
     }
-
-    if (pool.length < 2) {
-      return res.status(400).json({
-        error: 'Not enough artists in this category (minimum 2).',
-        available: pool.length,
-      });
-    }
-
-    shuffle(pool);
-    // Snap to the nearest lower power of 2 (max 32)
-    const bracketSize = Math.min(
-      32,
-      Math.pow(2, Math.floor(Math.log2(Math.min(pool.length, 32))))
-    );
-    artists = pool.slice(0, bracketSize);
   }
 
-  // Ensure bracket size is a power of 2 between 2 and 32
-  if (artists.length < 2) {
-    return res.status(400).json({ error: 'Not enough valid artists to start a tournament.' });
+  const uniquePool = dedupeArtistsByName(pool);
+  if (uniquePool.length < MVP_BRACKET_SIZE) {
+    return res.status(400).json({
+      error: `At least ${MVP_BRACKET_SIZE} unique artists are required for an MVP tournament.`,
+      available: uniquePool.length,
+      required: MVP_BRACKET_SIZE,
+    });
   }
 
-  const bracketSize = Math.pow(2, Math.floor(Math.log2(artists.length)));
-  artists = shuffle(artists).slice(0, bracketSize);
+  const artists = weightedSampleWithoutReplacement(uniquePool, MVP_BRACKET_SIZE);
 
   const tournamentId = uuidv4();
   const now = new Date().toISOString();
@@ -201,12 +235,6 @@ router.post('/start', (req, res) => {
     });
 
     ensureRankingRows(db, artists.map((a) => a.id));
-
-    // Increment tournaments_played for all participants
-    const incPlayed = db.prepare(`
-      UPDATE rankings SET tournaments_played = tournaments_played + 1 WHERE artist_id = ?
-    `);
-    artists.forEach((a) => incPlayed.run(a.id));
 
     // Create Round 1 matches
     const insertMatch = db.prepare(`
@@ -333,9 +361,6 @@ router.post('/:id/match', (req, res) => {
       WHERE id = @id
     `).run({ winner_id, played_at: playedAt, id: match_id });
 
-    // Award points
-    awardMatchPoints(db, winner_id, match.round);
-
     // Check if all matches in this round are complete
     const roundMatches = db
       .prepare(
@@ -361,10 +386,9 @@ router.post('/:id/match', (req, res) => {
           WHERE id = ?
         `).run(playedAt, winners[0], tournament.id);
 
-        // Award bonus points to the overall champion
-        db.prepare(`
-          UPDATE rankings SET points = points + ? WHERE artist_id = ?
-        `).run(WINNER_BONUS, winners[0]);
+        // Ranking effects are applied only once the full tournament is complete.
+        // This keeps abandoned tournaments out of aggregate rankings.
+        applyCompletedTournamentRankings(db, tournament.id, winners[0]);
       } else {
         // Build next round
         const nextRound = match.round + 1;
@@ -447,6 +471,8 @@ router.post('/:id/complete', (req, res) => {
     SET status = 'completed', completed_at = ?, winner_id = ?
     WHERE id = ?
   `).run(now, lastWinner.winner_id, tournament.id);
+
+  applyCompletedTournamentRankings(db, tournament.id, lastWinner.winner_id);
 
   const updatedTournament = db.prepare(`SELECT * FROM tournaments WHERE id = ?`).get(tournament.id);
   res.json({ tournament: updatedTournament });
