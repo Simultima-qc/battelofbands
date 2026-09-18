@@ -1,0 +1,39 @@
+name: Client tests
+
+on:
+  push:
+    branches:
+      - feature/issue-6-result-payoff
+    paths:
+      - 'client/**'
+      - '.github/workflows/client-tests.yml'
+  pull_request:
+    paths:
+      - 'client/**'
+      - '.github/workflows/client-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run client tests
+        run: npm test
+
+      - name: Build client
+        run: npm run build
