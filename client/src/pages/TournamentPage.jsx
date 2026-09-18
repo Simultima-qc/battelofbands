@@ -15,7 +15,7 @@ const FLAG_MAP = {
   BB:'🇧🇧',
 }
 
-export default function TournamentPage({ onEnd }) {
+export default function TournamentPage({ sessionId, onEnd, onStart }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t } = useLanguage()
@@ -23,6 +23,8 @@ export default function TournamentPage({ onEnd }) {
   const [bracket, setBracket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [replaying, setReplaying] = useState(false)
+  const [replayError, setReplayError] = useState(null)
 
   const loadTournament = useCallback(async () => {
     try {
@@ -50,6 +52,24 @@ export default function TournamentPage({ onEnd }) {
   function handleNewTournament() {
     onEnd()
     navigate('/')
+  }
+
+  async function handleReplayCategory() {
+    if (replaying) return
+    setReplaying(true)
+    setReplayError(null)
+
+    try {
+      const data = await api.startTournament(
+        sessionId,
+        tournament.category_type,
+        tournament.category_value
+      )
+      onStart(data.tournament.id)
+    } catch (e) {
+      setReplayError(e.message)
+      setReplaying(false)
+    }
   }
 
   if (loading) return <div className="tp-loading"><div className="spinner" /></div>
@@ -82,7 +102,14 @@ export default function TournamentPage({ onEnd }) {
       </div>
 
       {isCompleted ? (
-        <WinnerScreen tournament={tournament} onNewTournament={handleNewTournament} />
+        <WinnerScreen
+          tournament={tournament}
+          bracket={bracket}
+          onNewTournament={handleNewTournament}
+          onReplayCategory={handleReplayCategory}
+          replaying={replaying}
+          replayError={replayError}
+        />
       ) : (
         <>
           <Bracket bracket={bracket} currentMatchId={currentMatch?.id} />
