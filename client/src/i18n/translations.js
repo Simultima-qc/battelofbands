@@ -51,8 +51,8 @@ export const translations = {
     'winner.link.rankings': 'Voir le classement',
 
     // Rankings
-    'rankings.title': '🏆 Classement mondial',
-    'rankings.subtitle': 'Points cumulés sur tous les tournois',
+    'rankings.title': '🏆 Classement Battle of Bands',
+    'rankings.subtitle': 'Résultats cumulés des tournois complétés sur cette application',
     'rankings.header.artist': 'Artiste',
     'rankings.header.points': 'Points',
     'rankings.header.wins': 'Victoires',
@@ -111,8 +111,8 @@ export const translations = {
     'winner.button.replaying': 'Generating...',
     'winner.link.rankings': 'View rankings',
 
-    'rankings.title': '🏆 World Rankings',
-    'rankings.subtitle': 'Points accumulated across all tournaments',
+    'rankings.title': '🏆 Battle of Bands Rankings',
+    'rankings.subtitle': 'Aggregate results from completed tournaments in this app',
     'rankings.header.artist': 'Artist',
     'rankings.header.points': 'Points',
     'rankings.header.wins': 'Wins',
@@ -171,8 +171,8 @@ export const translations = {
     'winner.button.replaying': 'Generando...',
     'winner.link.rankings': 'Ver clasificación',
 
-    'rankings.title': '🏆 Clasificación mundial',
-    'rankings.subtitle': 'Puntos acumulados en todos los torneos',
+    'rankings.title': '🏆 Clasificación de Battle of Bands',
+    'rankings.subtitle': 'Resultados acumulados de los torneos completados en esta aplicación',
     'rankings.header.artist': 'Artista',
     'rankings.header.points': 'Puntos',
     'rankings.header.wins': 'Victorias',
