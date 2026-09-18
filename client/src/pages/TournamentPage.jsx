@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
+import { isActiveTournament } from '../lib/tournamentLifecycle'
 import Bracket from '../components/Bracket'
 import WinnerScreen from '../components/WinnerScreen'
 import './TournamentPage.css'
@@ -39,6 +40,12 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
   }, [id])
 
   useEffect(() => { loadTournament() }, [loadTournament])
+
+  useEffect(() => {
+    if (tournament && !isActiveTournament(tournament)) {
+      onEnd()
+    }
+  }, [tournament, onEnd])
 
   async function handleVote(matchId, winnerId) {
     try {
