@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
+import { parseRankingsResponse } from '../lib/rankingsResponse'
 import './RankingsPage.css'
 
 const FLAG_MAP = {
@@ -24,8 +25,9 @@ export default function RankingsPage() {
     setLoading(true)
     api.getRankings(page, LIMIT, 'avg')
       .then(data => {
-        setRankings(data.rankings)
-        setTotal(data.total)
+        const parsed = parseRankingsResponse(data)
+        setRankings(parsed.rankings)
+        setTotal(parsed.total)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
