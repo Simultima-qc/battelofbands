@@ -19,11 +19,10 @@ const {
  * Round indices are 1-based (round 1 … round 5).
  */
 const ROUND_POINTS = {
-  1: 1,
-  2: 2,
-  3: 4,  // quarter-finals
-  4: 8,  // semi-finals
-  5: 16, // final
+  1: 2,  // round of 16
+  2: 4,  // quarter-finals
+  3: 8,  // semi-finals
+  4: 16, // final
 };
 
 /** Bonus points awarded to the overall tournament winner (on top of the final win). */
@@ -117,9 +116,9 @@ function awardMatchPoints(db, winnerId, round) {
   const updates = { updateBase };
 
   // Round-specific stat columns
-  if (round === 3) updates.updateQuarters = db.prepare(`UPDATE rankings SET quarters = quarters + 1 WHERE artist_id = ?`);
-  if (round === 4) updates.updateSemis    = db.prepare(`UPDATE rankings SET semis    = semis    + 1 WHERE artist_id = ?`);
-  if (round === 5) updates.updateFinals   = db.prepare(`UPDATE rankings SET finals   = finals   + 1 WHERE artist_id = ?`);
+  if (round === 2) updates.updateQuarters = db.prepare(`UPDATE rankings SET quarters = quarters + 1 WHERE artist_id = ?`);
+  if (round === 3) updates.updateSemis    = db.prepare(`UPDATE rankings SET semis    = semis    + 1 WHERE artist_id = ?`);
+  if (round === 4) updates.updateFinals   = db.prepare(`UPDATE rankings SET finals   = finals   + 1 WHERE artist_id = ?`);
 
   updates.updateBase.run({ pts, winnerId });
   if (updates.updateQuarters) updates.updateQuarters.run(winnerId);
