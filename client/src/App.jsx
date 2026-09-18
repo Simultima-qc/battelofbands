@@ -1,7 +1,8 @@
 import { Routes, Route, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from './useSession'
 import { api } from './api'
+import { isActiveTournament } from './lib/tournamentLifecycle'
 import Header from './components/Header'
 import HomePage from './pages/HomePage'
 import TournamentPage from './pages/TournamentPage'
@@ -18,22 +19,22 @@ export default function App() {
   useEffect(() => {
     api.getActiveSession(sessionId)
       .then(data => {
-        if (data?.tournament?.id) {
-          setActiveTournamentId(data.tournament.id)
-        }
+        setActiveTournamentId(
+          isActiveTournament(data?.tournament) ? data.tournament.id : null
+        )
       })
       .catch(() => {})
       .finally(() => setChecking(false))
   }, [sessionId])
 
-  function handleTournamentStart(tournamentId) {
+  const handleTournamentStart = useCallback((tournamentId) => {
     setActiveTournamentId(tournamentId)
     navigate(`/tournament/${tournamentId}`)
-  }
+  }, [navigate])
 
-  function handleTournamentEnd() {
+  const handleTournamentEnd = useCallback(() => {
     setActiveTournamentId(null)
-  }
+  }, [])
 
   if (checking) {
     return (
