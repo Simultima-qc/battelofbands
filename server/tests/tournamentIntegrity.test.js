@@ -115,6 +115,19 @@ test('weighted selection never duplicates a normalized artist identity', () => {
   assert.equal(identities.filter((name) => name === 'the band').length, 1);
 });
 
+test('weighted selection favors higher popularity for the same random draw', () => {
+  const chosen = weightedSampleWithoutReplacement(
+    [
+      { id: 'low', name: 'Low Popularity', popularity: 1 },
+      { id: 'high', name: 'High Popularity', popularity: 10 },
+    ],
+    1,
+    () => 0.5
+  );
+
+  assert.equal(chosen[0].id, 'high');
+});
+
 test('MVP tournament API enforces 16 unique artists and defers rankings until completion', async () => {
   await withApi(async ({ db, request }) => {
     const categories = await request('/api/artists/categories');
@@ -238,6 +251,19 @@ test('MVP tournament API enforces 16 unique artists and defers rankings until co
     assert.equal(totalsAfterCompletion.tournaments_played, 16);
     assert.ok(totalsAfterCompletion.points > 0);
     assert.equal(totalsAfterCompletion.wins, 15);
+
+    const stageTotals = db.prepare(`
+      SELECT
+        SUM(quarters) AS quarters,
+        SUM(semis) AS semis,
+        SUM(finals) AS finals
+      FROM rankings
+    `).get();
+    assert.deepEqual(stageTotals, {
+      quarters: 4,
+      semis: 2,
+      finals: 1,
+    });
 
     // Completion endpoint is idempotent once the tournament is already complete.
     const completeAgain = await request(`/api/tournament/${tournamentId}/complete`, {
