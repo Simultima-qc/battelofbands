@@ -64,6 +64,7 @@ export default function App() {
               <TournamentPage
                 sessionId={sessionId}
                 onEnd={handleTournamentEnd}
+                onStart={handleTournamentStart}
               />
             }
           />
