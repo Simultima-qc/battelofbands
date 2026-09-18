@@ -28,7 +28,7 @@ The default MVP session is:
 
 Do not expose tournament-size selection in the MVP.
 
-The current 32-artist implementation remains useful code, but 32 / 31 decisions is no longer the target product contract.
+The main tournament implementation is now aligned with this contract: 16 artists, 15 decisions and 4 rounds. The older variable-size / 32-artist behavior is no longer the default tournament path.
 
 The 16-artist choice is a **hypothesis to validate**, not a claim that 16 is universally optimal.
 
@@ -94,7 +94,7 @@ The product should avoid both extremes:
 - deterministic “always the 16 biggest stars”;
 - pure uniform random that can create obscure or low-recognition brackets.
 
-The repository already contains a popularity-weighted sampling concept. Future implementation should align the actual tournament-start path with that policy instead of inventing another selector.
+The tournament-start path now uses the shared popularity-weighted sampling policy without replacement.
 
 ## Match interaction
 
@@ -169,9 +169,7 @@ Starting a tournament is not equivalent to playing it.
 
 An abandoned tournament must not dilute artist averages.
 
-This product rule intentionally differs from the current implementation, where `tournaments_played` is incremented at tournament start.
-
-Fixing that behavior belongs in a later implementation issue, not in this contract issue.
+The current implementation follows this rule: `tournaments_played` is applied only when the full tournament completes, so abandoned tournaments do not count as played.
 
 ## Future measurement
 

@@ -2,7 +2,7 @@
 
 Jeu de préférences musicales en duels : tu choisis entre deux artistes jusqu'à révéler ton champion.
 
-> **MVP product contract:** the target session is currently **16 artists / 15 decisions / 4 rounds**. See [Core Game Loop — MVP Contract](docs/core_game_loop.md). The current 32-artist implementation predates this reboot and will be aligned in a later issue.
+> **MVP product contract:** the implemented main tournament flow is **16 artists / 15 decisions / 4 rounds**. See [Core Game Loop — MVP Contract](docs/core_game_loop.md).
 
 ## Installation
 
@@ -16,7 +16,7 @@ Jeu de préférences musicales en duels : tu choisis entre deux artistes jusqu'�
 cd server && npm install
 cd ../client && npm install
 
-# 2. Peupler la base de données (504 artistes)
+# 2. Peupler la base de données (726 artistes)
 cd server && npm run seed
 
 # 3. Lancer le backend (terminal 1)
@@ -35,7 +35,7 @@ BattleOfBands/
 ├── server/          # API Node.js + Express + SQLite
 │   ├── db/          # Base de données & seed
 │   ├── routes/      # artists, tournament, rankings
-│   └── data/        # artists.json (504 artistes)
+│   └── data/        # artists.json (726 artistes)
 └── client/          # Frontend React + Vite
     └── src/
         ├── pages/   # HomePage, TournamentPage, RankingsPage
@@ -47,11 +47,13 @@ BattleOfBands/
 | Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/artists/categories` | Toutes les catégories disponibles |
-| GET | `/api/artists/random?category_type=genre&category_value=Rock` | 32 artistes aléatoires |
-| POST | `/api/tournament/start` | Démarrer un tournoi |
+| GET | `/api/artists/random?category_type=genre&category_value=Rock` | Échantillon pondéré d'artistes (endpoint auxiliaire; 32 par défaut) |
+| POST | `/api/tournament/start` | Démarrer le tournoi MVP : 16 artistes / 15 choix / 4 rondes |
 | POST | `/api/tournament/:id/match` | Voter pour un match |
 | GET | `/api/tournament/:id` | État du tournoi |
-| GET | `/api/rankings` | Classement global |
+| GET | `/api/rankings` | Classement agrégé de l'application |
+
+La route `/api/artists/random` est un utilitaire de sélection et ne définit pas la taille du tournoi. Le contrat produit du jeu passe par `/api/tournament/start`, fixé à 16 artistes pour le MVP.
 
 ## Catégories
 
