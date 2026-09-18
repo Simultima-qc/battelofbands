@@ -1,6 +1,8 @@
 # 🎸 Battle of Bands
 
-Tournoi musical : 32 artistes s'affrontent, tu votes pour ton préféré !
+Jeu de préférences musicales en duels : tu choisis entre deux artistes jusqu'à révéler ton champion.
+
+> **MVP product contract:** the target session is currently **16 artists / 15 decisions / 4 rounds**. See [Core Game Loop — MVP Contract](docs/core_game_loop.md). The current 32-artist implementation predates this reboot and will be aligned in a later issue.
 
 ## Installation
 
