@@ -51,9 +51,9 @@ BattleOfBands/
 | POST | `/api/tournament/start` | Démarrer le tournoi MVP : 16 artistes / 15 choix / 4 rondes |
 | POST | `/api/tournament/:id/match` | Voter pour un match |
 | GET | `/api/tournament/:id` | État du tournoi |
-| GET | `/api/rankings` | Classement global |
+| GET | `/api/rankings` | Classement agrégé de l'application |
 
-Le endpoint `/api/artists/random` est un utilitaire de sélection et ne définit pas la taille du tournoi. Le contrat produit du jeu passe par `/api/tournament/start`, fixé à 16 artistes pour le MVP.
+La route `/api/artists/random` est un utilitaire de sélection et ne définit pas la taille du tournoi. Le contrat produit du jeu passe par `/api/tournament/start`, fixé à 16 artistes pour le MVP.
 
 ## Catégories
 
