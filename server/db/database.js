@@ -3,9 +3,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'battleofbands.db');
+const DEFAULT_DB_PATH = path.join(__dirname, 'battleofbands.db');
 
 let db;
+let dbPath;
 
 function getDb() {
   if (!db) {
@@ -14,8 +15,10 @@ function getDb() {
   return db;
 }
 
-function initializeDb() {
-  db = new Database(DB_PATH);
+function initializeDb(pathOverride = process.env.BATTLE_OF_BANDS_DB_PATH || DEFAULT_DB_PATH) {
+  if (db) closeDb();
+  dbPath = pathOverride;
+  db = new Database(dbPath);
 
   // Enable WAL mode for better concurrent read performance
   db.pragma('journal_mode = WAL');
@@ -75,7 +78,7 @@ function initializeDb() {
   // Migration: add popularity column if it doesn't exist yet
   try { db.exec(`ALTER TABLE artists ADD COLUMN popularity INTEGER NOT NULL DEFAULT 4`); } catch {}
 
-  console.log(`[DB] Initialized — ${DB_PATH}`);
+  console.log(`[DB] Initialized — ${dbPath}`);
   return db;
 }
 
@@ -86,4 +89,4 @@ function closeDb() {
   }
 }
 
-module.exports = { initializeDb, getDb, closeDb };
+module.exports = { initializeDb, getDb, closeDb, DEFAULT_DB_PATH };

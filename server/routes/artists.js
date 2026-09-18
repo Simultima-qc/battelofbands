@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
+const { MVP_BRACKET_SIZE, normalizeArtistName } = require('../lib/artistSelection');
 
 /**
  * Parse the genres JSON string stored in the DB into an array.
@@ -66,59 +67,61 @@ router.get('/', (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/categories', (req, res) => {
   const db = getDb();
+  const rows = db
+    .prepare(`SELECT name, country, language, genres FROM artists`)
+    .all();
 
-  // Genres — stored as JSON arrays; pull them all and flatten
-  const allGenreRows = db.prepare(`SELECT genres FROM artists`).all();
-  const genreMap = new Map(); // lowercase key → original casing
-  for (const row of allGenreRows) {
+  function buildEligibleValues(extractValues) {
+    const byValue = new Map();
+
+    for (const artist of rows) {
+      const identity = normalizeArtistName(artist.name);
+      if (!identity) continue;
+
+      for (const value of extractValues(artist)) {
+        if (!value) continue;
+        const key = String(value).toLowerCase();
+        if (!byValue.has(key)) {
+          byValue.set(key, { label: value, artists: new Set() });
+        }
+        byValue.get(key).artists.add(identity);
+      }
+    }
+
+    const eligible = [...byValue.values()]
+      .filter((entry) => entry.artists.size >= MVP_BRACKET_SIZE)
+      .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+
+    return {
+      values: eligible.map((entry) => entry.label),
+      counts: Object.fromEntries(
+        eligible.map((entry) => [entry.label, entry.artists.size])
+      ),
+    };
+  }
+
+  const genres = buildEligibleValues((artist) => {
     try {
-      const arr = JSON.parse(row.genres);
-      if (Array.isArray(arr)) arr.forEach((g) => {
-        if (!genreMap.has(g.toLowerCase())) genreMap.set(g.toLowerCase(), g);
-      });
-    } catch { /* skip malformed rows */ }
-  }
-  const genreSet = new Set(genreMap.values());
-
-  const countries = db
-    .prepare(`SELECT DISTINCT country FROM artists WHERE country IS NOT NULL ORDER BY country`)
-    .all()
-    .map((r) => r.country);
-
-  const languages = db
-    .prepare(`SELECT DISTINCT language FROM artists WHERE language IS NOT NULL ORDER BY language`)
-    .all()
-    .map((r) => r.language);
-
-  // Count artists per genre
-  const genreCounts = {};
-  for (const [lower, original] of genreMap.entries()) {
-    const count = db.prepare(`SELECT COUNT(*) AS c FROM artists WHERE LOWER(genres) LIKE ?`).get(`%"${lower}"%`).c;
-    genreCounts[original] = count;
-  }
-
-  // Count artists per country
-  const countryCounts = {};
-  for (const c of countries) {
-    countryCounts[c] = db.prepare(`SELECT COUNT(*) AS c FROM artists WHERE country = ?`).get(c).c;
-  }
-
-  // Count artists per language
-  const langCounts = {};
-  for (const l of languages) {
-    langCounts[l] = db.prepare(`SELECT COUNT(*) AS c FROM artists WHERE language = ?`).get(l).c;
-  }
+      const parsed = JSON.parse(artist.genres);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const countries = buildEligibleValues((artist) => [artist.country]);
+  const languages = buildEligibleValues((artist) => [artist.language]);
 
   res.json({
     categories: {
-      genre: Array.from(genreSet).sort(),
-      country: countries,
-      language: languages,
+      genre: genres.values,
+      country: countries.values,
+      language: languages.values,
       _counts: {
-        genre: genreCounts,
-        country: countryCounts,
-        language: langCounts,
+        genre: genres.counts,
+        country: countries.counts,
+        language: languages.counts,
       },
+      _minimum_required: MVP_BRACKET_SIZE,
     },
   });
 });
