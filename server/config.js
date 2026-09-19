@@ -39,6 +39,32 @@ function resolveDatabaseSsl(env = process.env) {
   return env.DATABASE_SSL === 'false' ? false : 'require';
 }
 
+function getDatabaseUrl(env = process.env) {
+  return env.DATABASE_URL;
+}
+
+// Administrative-only: schema migrations/seed. Never read by the
+// request-serving runtime path. Falls back to DATABASE_URL when no
+// separate migration connection is configured.
+function getMigrationDatabaseUrl(env = process.env) {
+  return env.DATABASE_MIGRATION_URL || env.DATABASE_URL;
+}
+
+// Fails safe: production runtime must not silently fall back to a
+// non-durable local SQLite file when DATABASE_URL is missing/misconfigured.
+// Local development and tests may still omit it and use SQLite.
+function resolveStoreProvider({ provider, connectionString, env = process.env } = {}) {
+  if (provider) return provider;
+
+  if (connectionString || getDatabaseUrl(env)) return 'postgres';
+
+  if (isProduction(env)) {
+    throw new Error('DATABASE_URL is required when NODE_ENV=production.');
+  }
+
+  return 'sqlite';
+}
+
 module.exports = {
   DEV_ORIGINS,
   parseAllowedOrigins,
@@ -46,4 +72,7 @@ module.exports = {
   isProduction,
   getPort,
   resolveDatabaseSsl,
+  getDatabaseUrl,
+  getMigrationDatabaseUrl,
+  resolveStoreProvider,
 };

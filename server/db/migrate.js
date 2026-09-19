@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const postgres = require('postgres');
-const { resolveDatabaseSsl } = require('../config');
+const { resolveDatabaseSsl, getMigrationDatabaseUrl } = require('../config');
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
@@ -13,7 +13,7 @@ function resolveSsl(explicitSsl) {
 }
 
 async function runMigrations({
-  connectionString = process.env.DATABASE_MIGRATION_URL || process.env.DATABASE_URL,
+  connectionString = getMigrationDatabaseUrl(),
   ssl,
 } = {}) {
   if (!connectionString) {

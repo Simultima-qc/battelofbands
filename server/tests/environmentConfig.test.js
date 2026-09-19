@@ -7,6 +7,7 @@ const {
   parseAllowedOrigins,
   getAllowedOrigins,
   resolveDatabaseSsl,
+  resolveStoreProvider,
   DEV_ORIGINS,
 } = require('../config');
 const { initializeDb, closeDb } = require('../db/database');
@@ -38,6 +39,36 @@ test('resolveDatabaseSsl requires TLS unless explicitly disabled', () => {
   assert.equal(resolveDatabaseSsl({}), 'require');
   assert.equal(resolveDatabaseSsl({ DATABASE_SSL: 'false' }), false);
   assert.equal(resolveDatabaseSsl({ DATABASE_SSL: 'anything-else' }), 'require');
+});
+
+test('resolveStoreProvider fails safe: production without DATABASE_URL must not silently fall back to SQLite', () => {
+  assert.throws(
+    () => resolveStoreProvider({ env: { NODE_ENV: 'production' } }),
+    /DATABASE_URL is required/
+  );
+});
+
+test('resolveStoreProvider allows SQLite outside production when no DATABASE_URL is set', () => {
+  assert.equal(resolveStoreProvider({ env: {} }), 'sqlite');
+  assert.equal(resolveStoreProvider({ env: { NODE_ENV: 'test' } }), 'sqlite');
+});
+
+test('resolveStoreProvider selects postgres whenever a connection string is available, in any environment', () => {
+  assert.equal(
+    resolveStoreProvider({ env: { NODE_ENV: 'production', DATABASE_URL: 'postgres://x' } }),
+    'postgres'
+  );
+  assert.equal(
+    resolveStoreProvider({ connectionString: 'postgres://explicit', env: {} }),
+    'postgres'
+  );
+});
+
+test('resolveStoreProvider respects an explicit provider override regardless of environment', () => {
+  assert.equal(
+    resolveStoreProvider({ provider: 'sqlite', env: { NODE_ENV: 'production' } }),
+    'sqlite'
+  );
 });
 
 async function withApp(run) {
