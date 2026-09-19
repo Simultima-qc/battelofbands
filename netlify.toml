@@ -2,6 +2,10 @@
   command = "npm ci --prefix server && npm ci --prefix client && npm run build --prefix client"
   publish = "client/dist"
 
+[build.environment]
+  # Match the Node runtime CI validates against (server-tests.yml / client-tests.yml).
+  NODE_VERSION = "22"
+
 [functions]
   directory = "server/netlify/functions"
   node_bundler = "esbuild"
