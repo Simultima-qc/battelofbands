@@ -1,0 +1,14 @@
+[build]
+  command = "npm ci --prefix server && npm ci --prefix client && npm run build --prefix client"
+  publish = "client/dist"
+
+[functions]
+  directory = "server/netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["express", "better-sqlite3"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
