@@ -1,3 +1,7 @@
+[build]
+  command = "npm ci --prefix server && npm ci --prefix client && npm run build --prefix client"
+  publish = "client/dist"
+
 [functions]
   directory = "server/netlify/functions"
   node_bundler = "esbuild"
