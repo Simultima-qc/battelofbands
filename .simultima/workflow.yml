@@ -1,109 +1,33 @@
-# .simultima/workflow.yml
-# Operational profile: Battle of Bands current state (pre-deployment)
-# Version: 1.9.0 (Simultima Playbook reference)
-# Generated: 2026-09-19
+schema_version: 1
 
----
+# Non-secret operational profile. Repository reality and the latest central
+# Playbook / AGENTS.md remain authoritative if this file becomes stale.
+repository:
+  default_branch: main
 
-# Repository topology
-branch:
-  default: main
-  production: main
-  integration: null
-  strategy: DIRECT  # Direct PRs to main; no staging/integration branch
+delivery:
+  default_mode: DIRECT
+  integration_branch: null
+  production_branch: main
+  production_deploy_from_implementation_merge: false
 
-# Delivery
-delivery_mode: DIRECT
-production_deploy_from_merge: false  # No deployment pipeline exists yet
+validation:
+  commands:
+    test: "cd server && npm test && cd ../client && npm test"
+    lint: null
+    build: "cd client && npm run build"
 
-# Deployment
+ci:
+  workflow_name: "server-tests.yml + client-tests.yml"
+
 deployment:
   provider: null
-  environment: local-only
-  preview_support: false
+  preview_supported: false
 
-# Persistence
 database:
-  provider: SQLite
-  engine: better-sqlite3
-  location: local
+  provider: sqlite
   migrations_path: null
-  note: "No cloud database configured; all data persists locally"
 
-# Application
-application:
-  name: Battle of Bands
-  type: full-stack
-  frontend:
-    framework: React 18
-    bundler: Vite
-    build_command: "cd client && npm run build"
-  backend:
-    runtime: Node.js 22
-    framework: Express
-    entry: "cd server && npm run dev"
-
-# Validation
-validation:
-  test_backend: "cd server && npm test"
-  test_frontend: "cd client && npm test"
-  build_frontend: "cd client && npm run build"
-  lint: null
-  static_analysis: null
-  integration_tests: null
-
-# CI/CD
-ci:
-  provider: GitHub Actions
-  workflows:
-    - name: server-tests.yml
-      push_branches:
-        - feature/issue-4-tournament-integrity
-      pr_all_branches: true
-      path_filter: "server/**"
-      command: "cd server && npm test"
-    - name: client-tests.yml
-      push_branches:
-        - feature/issue-6-result-payoff
-      pr_all_branches: true
-      path_filter: "client/**"
-      commands:
-        - "cd client && npm test"
-        - "cd client && npm run build"
-
-# Product invariants (enforced by implementation agents)
-product:
-  mvp_tournament_size: 16
-  mvp_decisions: 15
-  mvp_rounds: 4
-  artist_selection: "popularity-weighted random sampling without duplicate identities"
-  abandoned_tournament_rule: "do not count as completed/played"
-  result_semantics: "personal result distinct from aggregate app rankings"
-
-# Environments
-environments: []  # No staging/production environment configured
-
-# Secrets
-secrets: []  # No secrets; all configuration is local/public
-
-# Release
-release:
-  gate_required: false  # Local development; no release process yet
-  versioning_scheme: null
-
-# Notes
-notes: |
-  Current state: MVP testing phase with local SQLite persistence.
-
-  Planned future changes (not yet Issues):
-  - Choose deployment provider (e.g., Netlify for frontend, cloud DB for backend)
-  - Migrate to Postgres and configure Supabase
-  - Add staging environment
-  - Add preview deployments
-  - Implement analytics
-
-  Out of scope for Issue #18:
-  - configuring Netlify or Supabase
-  - changing runtime code
-  - changing branch strategy
-  - inventing deployment facts that are not currently true
+environments:
+  non_production: []
+  production: null
