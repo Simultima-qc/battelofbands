@@ -121,6 +121,59 @@ test('PostgresStore recycles a stale client before business work begins', async 
   assert.deepEqual(closed, [1, 2]);
 });
 
+test('PostgresStore serializes concurrent stale-client recovery', async () => {
+  const closed = [];
+  let factoryCalls = 0;
+  let releaseStalePings;
+  const staleGate = new Promise((resolve) => {
+    releaseStalePings = resolve;
+  });
+  let stalePingCount = 0;
+
+  const staleClient = {
+    id: 1,
+    end: async () => {
+      closed.push(1);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    },
+  };
+  const replacementClient = {
+    id: 2,
+    end: async () => closed.push(2),
+  };
+
+  const store = new PostgresStore({
+    connectionString: 'postgres://example.invalid/test',
+    ssl: false,
+    clientFactory: () => {
+      factoryCalls += 1;
+      return factoryCalls === 1 ? staleClient : replacementClient;
+    },
+    ping: async (client) => {
+      if (client.id === 1) {
+        stalePingCount += 1;
+        if (stalePingCount === 2) releaseStalePings();
+        await staleGate;
+        throw new Error('stale socket');
+      }
+    },
+    livenessTimeoutMs: 100,
+  });
+
+  await Promise.all([
+    store.ensureAlive(),
+    store.ensureAlive(),
+  ]);
+
+  assert.equal(factoryCalls, 2, 'only one replacement client should be created');
+  assert.equal(store.sql, replacementClient);
+  assert.deepEqual(closed, [1], 'stale client should be closed exactly once');
+  assert.equal(store.reconnectPromise, null);
+
+  await store.close();
+  assert.deepEqual(closed, [1, 2]);
+});
+
 test('Postgres migration, seed, tournament and retry contracts', {
   skip: !TEST_DATABASE_URL,
   timeout: 30000,
