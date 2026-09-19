@@ -39,13 +39,15 @@ Agents must preserve these invariants unless an Issue explicitly authorizes a ch
 - **Frontend:** React 18 + Vite + React Router
 - **Persistence:** adapter-backed persistence; local development defaults to SQLite, while the accepted public-alpha target is hosted Postgres through `DATABASE_URL`
 - **Postgres migrations:** versioned SQL under `server/db/migrations/`; application routes must remain database-agnostic
-- **No deployment provider configured**
+- **Netlify target adapter/config:** code-level only; no Netlify site or active deployment is provisioned
 
 ### Directory Structure
 
 ```
 server/
-  ├── index.js           # Express server entry
+  ├── index.js           # Local Express server + reusable createApp() boundary
+  ├── runtime.js         # Single-flight serverless store initialization
+  ├── netlify/functions/ # Netlify Function adapter (code-only until provisioning)
   ├── db/
   │   ├── schema.js      # Schema definition
   │   └── seed.js        # 726-artist dataset loader
@@ -197,3 +199,4 @@ including:
 |---------|------|--------|-------|
 | 1.0 | 2026-09-19 | Claude Haiku 4.5 | Initial repository workflow adoption (Issue #18) |
 | 1.1 | 2026-09-19 | ChatGPT | Document adapter-backed SQLite/Postgres persistence and versioned migrations (Issue #25) |
+| 1.2 | 2026-09-19 | ChatGPT | Record code-level Netlify Function adapter with no active deployment (Issue #27) |
