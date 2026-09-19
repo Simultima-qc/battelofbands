@@ -1,0 +1,190 @@
+# AGENTS.md — Battle of Bands
+
+**Authority:** This is the authoritative source for Battle of Bands project-specific execution rules and verified operational facts.
+
+**Cross-project policy:** All workflow, merge strategy, validation, release and security policy not explicitly documented here defers to [`Simultima-qc/AI-Development-Playbook`](https://github.com/Simultima-qc/AI-Development-Playbook). Do not duplicate Playbook policy into this file.
+
+---
+
+## Product Invariants
+
+Agents must preserve these invariants unless an Issue explicitly authorizes a change:
+
+- **MVP tournament size:** 16 artists
+- **MVP decisions per tournament:** 15 forced choices
+- **MVP tournament structure:** 4 rounds (Round of 16 → Quarterfinals → Semifinals → Final)
+- **Artist selection:** popularity-weighted random sampling without duplicate identities
+- **Abandoned tournament accounting:** abandoned tournaments do not count as completed/played
+- **Result semantics:** personal result (one player's tournament) remains distinct from aggregate app rankings (accumulated application-wide outcomes)
+
+**Reference:** [Core Game Loop — MVP Contract](docs/core_game_loop.md)
+
+---
+
+## Repository Topology
+
+- **Default branch:** `main`
+- **Production branch:** `main` (no separate production deployment exists yet)
+- **Integration branch:** none (direct PRs to main)
+- **Delivery mode:** DIRECT (PR → review → merge to main)
+- **Active deployment:** none (local SQLite only; no staging/production environment)
+
+---
+
+## Architecture
+
+### Application Stack
+
+- **Backend:** Node.js + Express + SQLite (better-sqlite3)
+- **Frontend:** React 18 + Vite + React Router
+- **Persistence:** local SQLite database (no ORM; direct SQL queries)
+- **No deployment provider configured**
+
+### Directory Structure
+
+```
+server/
+  ├── index.js           # Express server entry
+  ├── db/
+  │   ├── schema.js      # Schema definition
+  │   └── seed.js        # 726-artist dataset loader
+  ├── routes/            # API endpoints
+  │   ├── artists.js
+  │   ├── tournament.js
+  │   └── rankings.js
+  └── tests/             # Backend tests (Node.js native)
+
+client/
+  ├── src/
+  │   ├── pages/         # HomePage, TournamentPage, RankingsPage
+  │   ├── components/    # Header, MatchView, Bracket, WinnerScreen
+  │   ├── App.jsx
+  │   └── index.css
+  ├── index.html
+  └── tests/             # Client tests (Node.js native)
+```
+
+---
+
+## Canonical Commands
+
+### Development
+
+```bash
+# Backend: Install, seed database, start server
+cd server
+npm install
+npm run seed        # Populate 726 artists into local SQLite
+npm run dev         # Start on http://localhost:3000 (nodemon auto-reload)
+
+# Frontend: Install, start dev server
+cd client
+npm install
+npm run dev         # Start on http://localhost:5173 (Vite)
+```
+
+### Testing
+
+```bash
+cd server && npm test    # Backend unit tests (Node.js native)
+cd client && npm test    # Client unit tests (Node.js native)
+```
+
+### Build
+
+```bash
+cd client && npm run build    # Production bundle to dist/
+```
+
+### Validation
+
+No database migrations exist. Schema changes require manual SQL against the local SQLite instance.
+
+---
+
+## API Contract
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/artists/categories` | List all available categories (genre, country, language) |
+| GET | `/api/artists/random?category_type=<type>&category_value=<value>` | Popularity-weighted sample of eligible artists (32 by default; not tournament-size binding) |
+| POST | `/api/tournament/start` | Create MVP tournament: 16 artists / 15 decisions / 4 rounds |
+| POST | `/api/tournament/:id/match` | Record one match vote and advance tournament state |
+| GET | `/api/tournament/:id` | Fetch tournament state (bracket, completed rounds, current match) |
+| GET | `/api/rankings` | Aggregate app rankings (artist win rates across all completed tournaments) |
+
+**Note:** `/api/artists/random` is a utility endpoint for sampling and does not define tournament size. Tournament size is fixed by `/api/tournament/start`.
+
+---
+
+## CI/CD
+
+### Current CI Workflows
+
+Two separate workflows run on PR and push:
+
+- **server-tests.yml:** runs `cd server && npm test` on server changes
+- **client-tests.yml:** runs `cd client && npm test` and `cd client && npm run build` on client changes
+
+### Workflow Facts
+
+- Both workflows target **Node.js 22**
+- Both use **npm ci** (clean install from package-lock.json)
+- No integration tests or end-to-end testing in CI
+- No deployment pipeline exists yet
+- PR checks run on all PRs; branch-specific push triggers exist for feature branches
+
+---
+
+## Data & Categories
+
+**Artist dataset:** 726 pre-seeded artists (rock, pop, metal, hip-hop, jazz, country, electronic, etc.)
+
+**Eligible category dimensions:** genre, country, language
+
+**Eligibility rule:** A category value must have ≥16 unique eligible artists to appear in MVP tournament selection. Values with <16 artists must not be surfaced as normal options.
+
+---
+
+## Implementation Constraints
+
+- Do not change the MVP game loop (16/15/4, forced choices, no skips, no ties, immediate advancement).
+- Do not change ranking semantics (personal result ≠ aggregate ranking).
+- Do not change completion accounting (abandoned tournaments do not count).
+- Do not introduce hidden deployment/environment facts (if a deployment provider is chosen later, it becomes a new Issue).
+- Do not add authentication, accounts, analytics, multiplayer, or monetization to the MVP.
+- Do not migrate SQLite to Postgres without an explicit Issue.
+
+---
+
+## Secrets & Security
+
+- **No secrets in this repository.** All configuration is local and non-sensitive.
+- CI workflows do not access external services or credentials.
+- Database is local SQLite; no cloud database credentials exist.
+- Future Supabase or deployment secrets must be added through [Playbook-defined secret management](https://github.com/Simultima-qc/AI-Development-Playbook), not hardcoded into files.
+
+---
+
+## Playbook Deference
+
+For all topics not covered above, refer to:
+
+**[Simultima-qc/AI-Development-Playbook](https://github.com/Simultima-qc/AI-Development-Playbook)**
+
+including:
+
+- merge strategy and commit message conventions;
+- PR/Issue labeling and workflow;
+- code review standards;
+- release process and versioning;
+- security incident response;
+- change tracking and validation evidence.
+
+---
+
+## Document Versions
+
+| Version | Date | Author | Notes |
+|---------|------|--------|-------|
+| 1.0 | 2026-09-19 | Claude Haiku 4.5 | Initial repository workflow adoption (Issue #18) |
