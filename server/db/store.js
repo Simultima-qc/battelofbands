@@ -587,7 +587,7 @@ class PostgresStore {
             ${artist.name},
             ${artist.country || null},
             ${artist.language || null},
-            ${tx.json(artist.genres || [])},
+            ${JSON.stringify(artist.genres || [])}::jsonb,
             ${artist.image_url || null},
             ${artist.mbid || null},
             ${artist.popularity ?? 4}
