@@ -146,6 +146,49 @@ Two separate workflows run on PR and push:
 
 ---
 
+## Environment Contract
+
+Interpretation of these variables is centralized in `server/config.js`; do not read `process.env` directly for them elsewhere. This is code-level configuration only — no Netlify site or Supabase project is provisioned by this contract (see Repository Topology above).
+
+**Client:** the production browser build calls the relative path `/api` (see `client/src/api.js`). There is no `VITE_API_URL`/`VITE_API_BASE`. Local Vite dev proxies `/api` to `http://localhost:3001` (see `client/vite.config.js`) and this must keep working unmodified.
+
+### Required at production runtime
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Secret. Pooled runtime Postgres connection string (Supabase transaction-mode pooler). |
+
+`server/config.js`'s `resolveStoreProvider()` fails safe: it throws instead of falling back to SQLite whenever `DATABASE_URL` is missing in a **deployed runtime**. A deployed runtime is detected as `NODE_ENV=production` **or** `SITE_ID` present — `SITE_ID` is used because Netlify Functions do not inherit `netlify.toml`'s `[build.environment]` (build-time only) and do not reliably set `NODE_ENV` at runtime, but always expose `SITE_ID`. Local development and tests (neither signal present) still fall back to SQLite.
+
+### Optional runtime
+
+| Variable | Purpose |
+|----------|---------|
+| `NODE_ENV=production` | Standard runtime mode flag. |
+| `DATABASE_SSL` | Set to `false` to disable TLS; any other value (including unset) requires TLS. |
+| `ALLOWED_ORIGINS` | Comma-separated explicit CORS allow-list for cross-origin API access. Only needed if the API must be reachable from an origin other than the same-origin production site. Local Vite dev origins (`http://localhost:5173`, `http://127.0.0.1:5173`) are always trusted regardless of this variable. |
+
+### Administrative only
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_MIGRATION_URL` | Secret. Used by `npm run migrate` / seed tooling only. Falls back to `DATABASE_URL` if unset. Must never be read by the request-serving runtime path. |
+
+**Never commit real values for any secret variable above.**
+
+### CORS policy
+
+- No wildcard (`*`) origin in any environment.
+- Local Vite dev origins are always accepted.
+- Any additional origin must be explicitly listed in `ALLOWED_ORIGINS`; there is no implicit trust of arbitrary request origins.
+- The selected production topology is same-origin (`/api/*` on the same Netlify site as the client), so production browser traffic does not depend on CORS at all.
+
+### Error responses
+
+The global Express error handler (`server/index.js`) only forwards `err.message` to the client when the error is an `HttpError` (`server/lib/http.js`) — i.e. a deliberately raised, API-safe message. Any other error (driver failures, unexpected exceptions) returns a generic `"Internal server error."` so connection strings or internals can never leak into a response.
+
+---
+
 ## Data & Categories
 
 **Artist dataset:** 726 pre-seeded artists (rock, pop, metal, hip-hop, jazz, country, electronic, etc.)
@@ -200,3 +243,4 @@ including:
 | 1.0 | 2026-09-19 | Claude Haiku 4.5 | Initial repository workflow adoption (Issue #18) |
 | 1.1 | 2026-09-19 | ChatGPT | Document adapter-backed SQLite/Postgres persistence and versioned migrations (Issue #25) |
 | 1.2 | 2026-09-19 | ChatGPT | Record code-level Netlify Function adapter with no active deployment (Issue #27) |
+| 1.3 | 2026-09-19 | Claude Sonnet 5 | Document explicit runtime environment contract, allow-listed CORS, and safe error responses; no deployment provisioned (Issue #29) |

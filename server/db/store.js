@@ -4,6 +4,7 @@ const postgres = require('postgres');
 const { v4: uuidv4 } = require('uuid');
 const { initializeDb, getDb, closeDb } = require('./database');
 const { HttpError } = require('../lib/http');
+const { resolveDatabaseSsl, resolveStoreProvider, getDatabaseUrl } = require('../config');
 
 const ROUND_POINTS = { 1: 1, 2: 2, 3: 4, 4: 8 };
 const WINNER_BONUS = 16;
@@ -486,8 +487,8 @@ class SQLiteStore {
 
 class PostgresStore {
   constructor({
-    connectionString = process.env.DATABASE_URL,
-    ssl = process.env.DATABASE_SSL === 'false' ? false : 'require',
+    connectionString = getDatabaseUrl(),
+    ssl = resolveDatabaseSsl(),
     clientFactory = postgres,
     ping = null,
     livenessTimeoutMs = 1500,
@@ -1024,7 +1025,7 @@ async function initializeStore({
   clientFactory,
   ping,
 } = {}) {
-  const selected = provider || (connectionString || process.env.DATABASE_URL ? 'postgres' : 'sqlite');
+  const selected = resolveStoreProvider({ provider, connectionString });
 
   if (activeStore?.close) {
     await activeStore.close();
@@ -1033,7 +1034,7 @@ async function initializeStore({
 
   if (selected === 'postgres') {
     activeStore = new PostgresStore({
-      connectionString: connectionString || process.env.DATABASE_URL,
+      connectionString: connectionString || getDatabaseUrl(),
       ssl,
       clientFactory,
       ping,

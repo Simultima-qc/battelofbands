@@ -3,18 +3,27 @@
 const express = require('express');
 const cors = require('cors');
 const { initializeStore } = require('./db/store');
+const { getAllowedOrigins, getPort } = require('./config');
+const { HttpError } = require('./lib/http');
 
 function createApp() {
   const app = express();
 
+  const allowedOrigins = getAllowedOrigins();
+
   app.use(cors({
-    origin: [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-    ],
+    origin(origin, callback) {
+      // No Origin header means same-origin or a non-browser client; the
+      // production topology is same-origin, so this is the normal case.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // Deny without throwing: the request proceeds without CORS headers,
+      // so a browser will block the response instead of getting a 500.
+      return callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
   }));
 
   app.use(express.json());
@@ -36,22 +45,26 @@ function createApp() {
     res.status(404).json({ error: 'Route not found.' });
   });
 
-  // eslint-disable-next-line no-unused-vars
-  app.use((err, _req, res, _next) => {
-    console.error('[Error]', err);
-    res.status(err.status || 500).json({
-      error: err.message || 'Internal server error.',
-    });
-  });
+  app.use(errorHandler);
 
   return app;
+}
+
+// Only HttpError carries a message written for API consumers. Anything else
+// (driver errors, unexpected exceptions) may embed connection strings or
+// other internals and must not reach the response body.
+// eslint-disable-next-line no-unused-vars
+function errorHandler(err, _req, res, _next) {
+  console.error('[Error]', err);
+  const safeMessage = err instanceof HttpError ? err.message : 'Internal server error.';
+  res.status(err.status || 500).json({ error: safeMessage });
 }
 
 async function startServer() {
   await initializeStore();
 
   const app = createApp();
-  const PORT = process.env.PORT || 3001;
+  const PORT = getPort();
   return app.listen(PORT, () => {
     console.log(`[Server] BattleOfBands API listening on http://localhost:${PORT}`);
   });
@@ -64,4 +77,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApp, startServer };
+module.exports = { createApp, startServer, errorHandler };
