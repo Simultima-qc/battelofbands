@@ -2,63 +2,51 @@
 
 const express = require('express');
 const router = express.Router();
-const { getDb } = require('../db/database');
+const { getStore } = require('../db/store');
+const { asyncRoute } = require('../lib/http');
 
-// ---------------------------------------------------------------------------
-// GET /api/rankings
-// Query params:
-//   page      — 1-based page number (default 1)
-//   limit     — results per page (default 20, max 100)
-//   sort      — column to sort by: points | wins | finals | semis | quarters | tournaments_played (default: points)
-//   order     — asc | desc (default: desc)
-// ---------------------------------------------------------------------------
-router.get('/', (req, res) => {
-  const db = getDb();
+const ALLOWED_SORT = new Set([
+  'avg',
+  'points',
+  'wins',
+  'finals',
+  'semis',
+  'quarters',
+  'tournaments_played',
+]);
 
-  const ALLOWED_SORT = new Set(['avg', 'points', 'wins', 'finals', 'semis', 'quarters', 'tournaments_played']);
-  const ALLOWED_ORDER = new Set(['asc', 'desc']);
+function withAverage(row) {
+  return {
+    ...row,
+    avg: row.tournaments_played > 0
+      ? Math.round((row.points / row.tournaments_played) * 100) / 100
+      : null,
+  };
+}
 
-  const sort  = ALLOWED_SORT.has(req.query.sort) ? req.query.sort : 'avg';
-  const order = ALLOWED_ORDER.has(req.query.order?.toLowerCase())
-    ? req.query.order.toLowerCase()
+router.get('/', asyncRoute(async (req, res) => {
+  const sort = ALLOWED_SORT.has(req.query.sort) ? req.query.sort : 'avg';
+  const order = String(req.query.order || 'desc').toLowerCase() === 'asc'
+    ? 'asc'
     : 'desc';
 
   const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
-  const page  = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const offset = (page - 1) * limit;
 
-  const total = db
-    .prepare(`SELECT COUNT(*) AS c FROM rankings WHERE tournaments_played > 0`)
-    .get().c;
+  const allRows = (await getStore().listRankingRows())
+    .filter((row) => row.tournaments_played > 0)
+    .map(withAverage);
 
-  const sortExpr = sort === 'avg'
-    ? `CAST(r.points AS REAL) / r.tournaments_played`
-    : `r.${sort}`;
-
-  const rows = db
-    .prepare(
-      `SELECT
-         r.*,
-         a.name,
-         a.country,
-         a.language,
-         a.genres,
-         a.image_url,
-         a.mbid,
-         ROUND(CAST(r.points AS REAL) / r.tournaments_played, 2) AS avg
-       FROM rankings r
-       JOIN artists a ON a.id = r.artist_id
-       WHERE r.tournaments_played > 0
-       ORDER BY ${sortExpr} ${order.toUpperCase()}, a.name ASC
-       LIMIT @limit OFFSET @offset`
-    )
-    .all({ limit, offset });
-
-  // Parse genres for each row
-  const rankings = rows.map((row) => {
-    try { row.genres = JSON.parse(row.genres); } catch { row.genres = []; }
-    return row;
+  allRows.sort((a, b) => {
+    const left = Number(a[sort] ?? 0);
+    const right = Number(b[sort] ?? 0);
+    const delta = order === 'asc' ? left - right : right - left;
+    return delta || String(a.name).localeCompare(String(b.name));
   });
+
+  const rankings = allRows.slice(offset, offset + limit);
+  const total = allRows.length;
 
   res.json({
     rankings,
@@ -69,78 +57,35 @@ router.get('/', (req, res) => {
       total_pages: Math.ceil(total / limit),
     },
   });
-});
+}));
 
-// ---------------------------------------------------------------------------
-// GET /api/rankings/leaderboard
-// Shortcut — top 10 by points, no pagination needed.
-// ---------------------------------------------------------------------------
-router.get('/leaderboard', (req, res) => {
-  const db = getDb();
-
-  const rows = db
-    .prepare(
-      `SELECT
-         r.*,
-         a.name,
-         a.country,
-         a.language,
-         a.genres,
-         a.image_url,
-         a.mbid
-       FROM rankings r
-       JOIN artists a ON a.id = r.artist_id
-       WHERE r.tournaments_played > 0
-       ORDER BY r.points DESC, r.wins DESC, a.name ASC
-       LIMIT 10`
+router.get('/leaderboard', asyncRoute(async (_req, res) => {
+  const leaderboard = (await getStore().listRankingRows())
+    .filter((row) => row.tournaments_played > 0)
+    .sort((a, b) =>
+      (b.points - a.points)
+      || (b.wins - a.wins)
+      || String(a.name).localeCompare(String(b.name))
     )
-    .all();
-
-  const leaderboard = rows.map((row) => {
-    try { row.genres = JSON.parse(row.genres); } catch { row.genres = []; }
-    return row;
-  });
+    .slice(0, 10);
 
   res.json({ leaderboard });
-});
+}));
 
-// ---------------------------------------------------------------------------
-// GET /api/rankings/:artistId
-// Single artist statistics.
-// ---------------------------------------------------------------------------
-router.get('/:artistId', (req, res) => {
-  const db = getDb();
+router.get('/:artistId', asyncRoute(async (req, res) => {
+  const rows = await getStore().listRankingRows();
+  const row = rows.find((item) => item.artist_id === req.params.artistId);
 
-  const row = db
-    .prepare(
-      `SELECT
-         r.*,
-         a.name,
-         a.country,
-         a.language,
-         a.genres,
-         a.image_url,
-         a.mbid
-       FROM rankings r
-       JOIN artists a ON a.id = r.artist_id
-       WHERE r.artist_id = ?`
-    )
-    .get(req.params.artistId);
+  if (!row) {
+    return res.status(404).json({ error: 'Artist ranking not found.' });
+  }
 
-  if (!row) return res.status(404).json({ error: 'Artist ranking not found.' });
+  const globalRank = rows.filter((item) => item.points > row.points).length + 1;
 
-  try { row.genres = JSON.parse(row.genres); } catch { row.genres = []; }
-
-  // Compute global rank
-  const rankResult = db
-    .prepare(
-      `SELECT COUNT(*) + 1 AS rank
-       FROM rankings
-       WHERE points > (SELECT points FROM rankings WHERE artist_id = ?)`
-    )
-    .get(req.params.artistId);
-
-  res.json({ ranking: row, global_rank: rankResult?.rank ?? null });
-});
+  res.json({
+    ranking: row,
+    global_rank: globalRank,
+  });
+}));
 
 module.exports = router;
