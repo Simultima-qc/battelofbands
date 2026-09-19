@@ -120,13 +120,20 @@ router.get('/random', asyncRoute(async (req, res) => {
     });
   }
 
-  const selectedCount = Math.min(count, new Set(
+  const uniqueCount = new Set(
     pool.map((artist) => normalizeArtistName(artist.name))
-  ).size);
+  ).size;
+
+  if (uniqueCount < 2) {
+    return res.status(400).json({
+      error: 'Not enough unique artists in this category to sample.',
+      available: uniqueCount,
+    });
+  }
 
   const selected = weightedSampleWithoutReplacement(
     pool,
-    selectedCount
+    Math.min(count, uniqueCount)
   );
 
   res.json({ artists: selected, total: selected.length });
