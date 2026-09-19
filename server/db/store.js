@@ -500,6 +500,7 @@ class PostgresStore {
     this.clientFactory = clientFactory;
     this.ping = ping;
     this.livenessTimeoutMs = livenessTimeoutMs;
+    this.reconnectPromise = null;
     this.sql = this._createClient();
   }
 
@@ -535,27 +536,65 @@ class PostgresStore {
     }
   }
 
-  async ensureAlive() {
-    try {
+  async _recycleClient(staleClient, firstError) {
+    // Another request may already have replaced the client while this caller
+    // was waiting for its liveness check to fail.
+    if (this.sql !== staleClient) {
       await this._pingWithTimeout(this.sql);
       return;
+    }
+
+    try {
+      await staleClient.end({ timeout: 0 });
+    } catch {
+      // Recycling is best-effort; the replacement connection is authoritative.
+    }
+
+    // Re-check after close: a concurrent recovery may have completed while the
+    // stale client was shutting down.
+    if (this.sql !== staleClient) {
+      await this._pingWithTimeout(this.sql);
+      return;
+    }
+
+    const replacement = this._createClient();
+    this.sql = replacement;
+
+    try {
+      await this._pingWithTimeout(replacement);
+    } catch (secondError) {
+      const error = new Error('Postgres connection is unavailable.');
+      error.cause = secondError;
+      error.firstFailure = firstError;
+      throw error;
+    }
+  }
+
+  async ensureAlive() {
+    const client = this.sql;
+
+    try {
+      await this._pingWithTimeout(client);
+      return;
     } catch (firstError) {
-      const staleClient = this.sql;
-      try {
-        await staleClient.end({ timeout: 0 });
-      } catch {
-        // Recycling is best-effort; the replacement connection is authoritative.
+      // If another request already recovered the store, validate the current
+      // client rather than recycling the replacement it installed.
+      if (this.sql !== client) {
+        await this._pingWithTimeout(this.sql);
+        return;
       }
 
-      this.sql = this._createClient();
-      try {
-        await this._pingWithTimeout(this.sql);
-      } catch (secondError) {
-        const error = new Error('Postgres connection is unavailable.');
-        error.cause = secondError;
-        error.firstFailure = firstError;
-        throw error;
+      if (!this.reconnectPromise) {
+        let recoveryPromise;
+        recoveryPromise = this._recycleClient(client, firstError).finally(() => {
+          if (this.reconnectPromise === recoveryPromise) {
+            this.reconnectPromise = null;
+          }
+        });
+        this.reconnectPromise = recoveryPromise;
       }
+
+      return this.reconnectPromise;
     }
   }
 
