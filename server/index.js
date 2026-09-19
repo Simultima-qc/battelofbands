@@ -2,7 +2,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const { initializeDb } = require('./db/database');
+const { initializeStore } = require('./db/store');
 
 function createApp() {
   const app = express();
@@ -47,8 +47,9 @@ function createApp() {
   return app;
 }
 
-function startServer() {
-  initializeDb();
+async function startServer() {
+  await initializeStore();
+
   const app = createApp();
   const PORT = process.env.PORT || 3001;
   return app.listen(PORT, () => {
@@ -57,7 +58,10 @@ function startServer() {
 }
 
 if (require.main === module) {
-  startServer();
+  startServer().catch((error) => {
+    console.error('[Startup]', error);
+    process.exitCode = 1;
+  });
 }
 
 module.exports = { createApp, startServer };
