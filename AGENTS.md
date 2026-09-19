@@ -158,6 +158,8 @@ Interpretation of these variables is centralized in `server/config.js`; do not r
 |----------|---------|
 | `DATABASE_URL` | Secret. Pooled runtime Postgres connection string (Supabase transaction-mode pooler). |
 
+`server/config.js`'s `resolveStoreProvider()` fails safe: it throws instead of falling back to SQLite whenever `DATABASE_URL` is missing in a **deployed runtime**. A deployed runtime is detected as `NODE_ENV=production` **or** `SITE_ID` present — `SITE_ID` is used because Netlify Functions do not inherit `netlify.toml`'s `[build.environment]` (build-time only) and do not reliably set `NODE_ENV` at runtime, but always expose `SITE_ID`. Local development and tests (neither signal present) still fall back to SQLite.
+
 ### Optional runtime
 
 | Variable | Purpose |

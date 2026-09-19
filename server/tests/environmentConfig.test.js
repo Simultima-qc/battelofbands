@@ -8,6 +8,7 @@ const {
   getAllowedOrigins,
   resolveDatabaseSsl,
   resolveStoreProvider,
+  isDeployedRuntime,
   DEV_ORIGINS,
 } = require('../config');
 const { initializeDb, closeDb } = require('../db/database');
@@ -41,14 +42,28 @@ test('resolveDatabaseSsl requires TLS unless explicitly disabled', () => {
   assert.equal(resolveDatabaseSsl({ DATABASE_SSL: 'anything-else' }), 'require');
 });
 
-test('resolveStoreProvider fails safe: production without DATABASE_URL must not silently fall back to SQLite', () => {
+test('isDeployedRuntime treats NODE_ENV=production or a Netlify SITE_ID as a deployed runtime', () => {
+  assert.equal(isDeployedRuntime({}), false);
+  assert.equal(isDeployedRuntime({ NODE_ENV: 'production' }), true);
+  assert.equal(isDeployedRuntime({ SITE_ID: 'abc' }), true);
+  assert.equal(isDeployedRuntime({ NODE_ENV: 'test', SITE_ID: undefined }), false);
+});
+
+test('resolveStoreProvider fails safe: NODE_ENV=production without DATABASE_URL must not silently fall back to SQLite', () => {
   assert.throws(
     () => resolveStoreProvider({ env: { NODE_ENV: 'production' } }),
     /DATABASE_URL is required/
   );
 });
 
-test('resolveStoreProvider allows SQLite outside production when no DATABASE_URL is set', () => {
+test('resolveStoreProvider fails safe: a Netlify Function runtime (SITE_ID present) without DATABASE_URL must not silently fall back to SQLite, even without NODE_ENV=production', () => {
+  assert.throws(
+    () => resolveStoreProvider({ env: { SITE_ID: 'some-netlify-site-id', NODE_ENV: undefined } }),
+    /DATABASE_URL is required/
+  );
+});
+
+test('resolveStoreProvider allows SQLite for local/test runtimes (no NODE_ENV=production, no SITE_ID) when no DATABASE_URL is set', () => {
   assert.equal(resolveStoreProvider({ env: {} }), 'sqlite');
   assert.equal(resolveStoreProvider({ env: { NODE_ENV: 'test' } }), 'sqlite');
 });

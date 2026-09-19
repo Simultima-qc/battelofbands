@@ -29,6 +29,16 @@ function isProduction(env = process.env) {
   return env.NODE_ENV === 'production';
 }
 
+// Netlify Functions do not inherit netlify.toml's [build.environment] (that
+// only applies to the build step), and do not reliably set NODE_ENV at
+// runtime either. SITE_ID, however, is always present when code is running
+// inside a Netlify site/function. Treat either signal as "this is a real
+// deployed runtime that must have durable storage configured" — checking
+// NODE_ENV alone would miss the actual Netlify Function target.
+function isDeployedRuntime(env = process.env) {
+  return isProduction(env) || Boolean(env.SITE_ID);
+}
+
 function getPort(env = process.env) {
   return env.PORT || 3001;
 }
@@ -50,7 +60,7 @@ function getMigrationDatabaseUrl(env = process.env) {
   return env.DATABASE_MIGRATION_URL || env.DATABASE_URL;
 }
 
-// Fails safe: production runtime must not silently fall back to a
+// Fails safe: a deployed runtime must not silently fall back to a
 // non-durable local SQLite file when DATABASE_URL is missing/misconfigured.
 // Local development and tests may still omit it and use SQLite.
 function resolveStoreProvider({ provider, connectionString, env = process.env } = {}) {
@@ -58,8 +68,8 @@ function resolveStoreProvider({ provider, connectionString, env = process.env } 
 
   if (connectionString || getDatabaseUrl(env)) return 'postgres';
 
-  if (isProduction(env)) {
-    throw new Error('DATABASE_URL is required when NODE_ENV=production.');
+  if (isDeployedRuntime(env)) {
+    throw new Error('DATABASE_URL is required in a deployed/production runtime.');
   }
 
   return 'sqlite';
@@ -70,6 +80,7 @@ module.exports = {
   parseAllowedOrigins,
   getAllowedOrigins,
   isProduction,
+  isDeployedRuntime,
   getPort,
   resolveDatabaseSsl,
   getDatabaseUrl,
