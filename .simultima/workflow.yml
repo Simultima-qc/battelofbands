@@ -57,11 +57,15 @@ ci:
   provider: GitHub Actions
   workflows:
     - name: server-tests.yml
-      triggers: ["push to feature/issue-*", "PR"]
+      push_branches:
+        - feature/issue-4-tournament-integrity
+      pr_all_branches: true
       path_filter: "server/**"
       command: "cd server && npm test"
     - name: client-tests.yml
-      triggers: ["push to feature/issue-*", "PR"]
+      push_branches:
+        - feature/issue-6-result-payoff
+      pr_all_branches: true
       path_filter: "client/**"
       commands:
         - "cd client && npm test"
