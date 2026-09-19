@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
 import { isActiveTournament } from '../lib/tournamentLifecycle'
+import { deriveTournamentProgress } from '../lib/tournamentProgress'
 import Bracket from '../components/Bracket'
 import WinnerScreen from '../components/WinnerScreen'
 import './TournamentPage.css'
@@ -92,7 +93,7 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
   const currentMatch = currentRound?.find(m => !m.winner_id)
   const roundNumber = currentMatch?.round
   const isCompleted = tournament.status === 'completed'
-  const progress = getProgress(bracket)
+  const progress = deriveTournamentProgress(bracket)
 
   return (
     <div className="tp">
@@ -197,10 +198,4 @@ function CompactArtistBtn({ artist, onVote, voting, t }) {
       <span className="compact-vote-label">{t('match.vote')}</span>
     </button>
   )
-}
-
-function getProgress(bracket) {
-  if (!bracket) return { done: 0, total: 0 }
-  const all = bracket.flat()
-  return { done: all.filter(m => m.winner_id).length, total: all.length }
 }
