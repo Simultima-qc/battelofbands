@@ -37,7 +37,8 @@ Agents must preserve these invariants unless an Issue explicitly authorizes a ch
 
 - **Backend:** Node.js + Express + SQLite (better-sqlite3)
 - **Frontend:** React 18 + Vite + React Router
-- **Persistence:** local SQLite database (no ORM; direct SQL queries)
+- **Persistence:** adapter-backed persistence; local development defaults to SQLite, while the accepted public-alpha target is hosted Postgres through `DATABASE_URL`
+- **Postgres migrations:** versioned SQL under `server/db/migrations/`; application routes must remain database-agnostic
 - **No deployment provider configured**
 
 ### Directory Structure
@@ -98,7 +99,14 @@ cd client && npm run build    # Production bundle to dist/
 
 ### Validation
 
-No database migrations exist. Schema changes require manual SQL against the local SQLite instance.
+Postgres schema changes use versioned SQL migrations under `server/db/migrations/`.
+
+```bash
+cd server
+DATABASE_MIGRATION_URL=<disposable-or-admin-postgres-url> npm run migrate
+```
+
+Local development may continue to use SQLite without cloud credentials. The server CI validates the Postgres contract against an ephemeral Postgres service.
 
 ---
 
@@ -153,7 +161,7 @@ Two separate workflows run on PR and push:
 - Do not change completion accounting (abandoned tournaments do not count).
 - Do not introduce hidden deployment/environment facts (if a deployment provider is chosen later, it becomes a new Issue).
 - Do not add authentication, accounts, analytics, multiplayer, or monetization to the MVP.
-- Do not migrate SQLite to Postgres without an explicit Issue.
+- Do not provision or switch a deployed database/environment without an explicit Issue. Issue #25 authorizes the code-level Postgres data-layer migration only; cloud provisioning remains separate.
 
 ---
 
@@ -161,7 +169,7 @@ Two separate workflows run on PR and push:
 
 - **No secrets in this repository.** All configuration is local and non-sensitive.
 - CI workflows do not access external services or credentials.
-- Database is local SQLite; no cloud database credentials exist.
+- No cloud database credentials exist in the repository. Local SQLite requires none; Postgres credentials are supplied only through environment variables.
 - Future Supabase or deployment secrets must be added through [Playbook-defined secret management](https://github.com/Simultima-qc/AI-Development-Playbook), not hardcoded into files.
 
 ---
@@ -188,3 +196,4 @@ including:
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
 | 1.0 | 2026-09-19 | Claude Haiku 4.5 | Initial repository workflow adoption (Issue #18) |
+| 1.1 | 2026-09-19 | ChatGPT | Document adapter-backed SQLite/Postgres persistence and versioned migrations (Issue #25) |

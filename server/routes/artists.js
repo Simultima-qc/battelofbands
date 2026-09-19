@@ -2,114 +2,89 @@
 
 const express = require('express');
 const router = express.Router();
-const { getDb } = require('../db/database');
-const { MVP_BRACKET_SIZE, normalizeArtistName } = require('../lib/artistSelection');
+const { getStore } = require('../db/store');
+const {
+  MVP_BRACKET_SIZE,
+  normalizeArtistName,
+  weightedSampleWithoutReplacement,
+} = require('../lib/artistSelection');
+const { asyncRoute } = require('../lib/http');
 
-/**
- * Parse the genres JSON string stored in the DB into an array.
- * Attaches the parsed value back to the artist object.
- */
-function parseArtist(artist) {
-  if (!artist) return null;
-  try {
-    artist.genres = JSON.parse(artist.genres);
-  } catch {
-    artist.genres = [];
-  }
-  return artist;
-}
+function filterArtists(artists, categoryType, categoryValue) {
+  if (!categoryType || !categoryValue) return artists;
 
-function parseArtists(rows) {
-  return rows.map(parseArtist);
-}
+  const value = String(categoryValue).toLowerCase();
 
-// ---------------------------------------------------------------------------
-// GET /api/artists
-// Optional query params: ?category_type=genre&category_value=rock
-//                        ?category_type=country&category_value=US
-//                        ?category_type=language&category_value=Spanish
-// ---------------------------------------------------------------------------
-router.get('/', (req, res) => {
-  const db = getDb();
-  const { category_type, category_value } = req.query;
-
-  let rows;
-
-  if (category_type && category_value) {
-    const val = category_value.toLowerCase();
-
-    if (category_type === 'genre') {
-      // genres is stored as a JSON array string — use LIKE for a simple match
-      rows = db
-        .prepare(`SELECT * FROM artists WHERE LOWER(genres) LIKE ? ORDER BY name ASC`)
-        .all(`%"${val}"%`);
-    } else if (category_type === 'country') {
-      rows = db
-        .prepare(`SELECT * FROM artists WHERE LOWER(country) = ? ORDER BY name ASC`)
-        .all(val);
-    } else if (category_type === 'language') {
-      rows = db
-        .prepare(`SELECT * FROM artists WHERE LOWER(language) = ? ORDER BY name ASC`)
-        .all(val);
-    } else {
-      return res.status(400).json({ error: `Unknown category_type: ${category_type}` });
-    }
-  } else {
-    rows = db.prepare(`SELECT * FROM artists ORDER BY name ASC`).all();
+  if (categoryType === 'genre') {
+    return artists.filter((artist) =>
+      (artist.genres || []).some((genre) => String(genre).toLowerCase() === value)
+    );
   }
 
-  res.json({ artists: parseArtists(rows), total: rows.length });
-});
+  if (categoryType === 'country') {
+    return artists.filter(
+      (artist) => String(artist.country || '').toLowerCase() === value
+    );
+  }
 
-// ---------------------------------------------------------------------------
-// GET /api/artists/categories
-// Returns all unique genres, countries, and languages available in the DB.
-// ---------------------------------------------------------------------------
-router.get('/categories', (req, res) => {
-  const db = getDb();
-  const rows = db
-    .prepare(`SELECT name, country, language, genres FROM artists`)
-    .all();
+  if (categoryType === 'language') {
+    return artists.filter(
+      (artist) => String(artist.language || '').toLowerCase() === value
+    );
+  }
 
-  function buildEligibleValues(extractValues) {
-    const byValue = new Map();
+  return null;
+}
 
-    for (const artist of rows) {
-      const identity = normalizeArtistName(artist.name);
-      if (!identity) continue;
+function buildEligibleValues(artists, extractValues) {
+  const byValue = new Map();
 
-      for (const value of extractValues(artist)) {
-        if (!value) continue;
-        const key = String(value).toLowerCase();
-        if (!byValue.has(key)) {
-          byValue.set(key, { label: value, artists: new Set() });
-        }
-        byValue.get(key).artists.add(identity);
+  for (const artist of artists) {
+    const identity = normalizeArtistName(artist.name);
+    if (!identity) continue;
+
+    for (const rawValue of extractValues(artist)) {
+      if (!rawValue) continue;
+      const key = String(rawValue).toLowerCase();
+      if (!byValue.has(key)) {
+        byValue.set(key, { label: rawValue, artists: new Set() });
       }
+      byValue.get(key).artists.add(identity);
     }
-
-    const eligible = [...byValue.values()]
-      .filter((entry) => entry.artists.size >= MVP_BRACKET_SIZE)
-      .sort((a, b) => String(a.label).localeCompare(String(b.label)));
-
-    return {
-      values: eligible.map((entry) => entry.label),
-      counts: Object.fromEntries(
-        eligible.map((entry) => [entry.label, entry.artists.size])
-      ),
-    };
   }
 
-  const genres = buildEligibleValues((artist) => {
-    try {
-      const parsed = JSON.parse(artist.genres);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
-  const countries = buildEligibleValues((artist) => [artist.country]);
-  const languages = buildEligibleValues((artist) => [artist.language]);
+  const eligible = [...byValue.values()]
+    .filter((entry) => entry.artists.size >= MVP_BRACKET_SIZE)
+    .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+
+  return {
+    values: eligible.map((entry) => entry.label),
+    counts: Object.fromEntries(
+      eligible.map((entry) => [entry.label, entry.artists.size])
+    ),
+  };
+}
+
+router.get('/', asyncRoute(async (req, res) => {
+  const artists = await getStore().listArtists();
+  const { category_type, category_value } = req.query;
+  const filtered = filterArtists(artists, category_type, category_value);
+
+  if (filtered === null) {
+    return res.status(400).json({
+      error: `Unknown category_type: ${category_type}`,
+    });
+  }
+
+  res.json({ artists: filtered, total: filtered.length });
+}));
+
+router.get('/categories', asyncRoute(async (_req, res) => {
+  const artists = await getStore().listArtists();
+
+  const genres = buildEligibleValues(artists, (artist) => artist.genres || []);
+  const countries = buildEligibleValues(artists, (artist) => [artist.country]);
+  const languages = buildEligibleValues(artists, (artist) => [artist.language]);
 
   res.json({
     categories: {
@@ -124,40 +99,18 @@ router.get('/categories', (req, res) => {
       _minimum_required: MVP_BRACKET_SIZE,
     },
   });
-});
+}));
 
-// ---------------------------------------------------------------------------
-// GET /api/artists/random
-// Query params: category_type, category_value, count (default 32)
-// Returns N randomly selected artists from the specified category.
-// ---------------------------------------------------------------------------
-router.get('/random', (req, res) => {
-  const db = getDb();
+router.get('/random', asyncRoute(async (req, res) => {
+  const artists = await getStore().listArtists();
   const { category_type, category_value } = req.query;
   const count = Math.max(2, Math.min(64, parseInt(req.query.count, 10) || 32));
+  const pool = filterArtists(artists, category_type, category_value);
 
-  let pool;
-
-  if (category_type && category_value) {
-    const val = category_value.toLowerCase();
-
-    if (category_type === 'genre') {
-      pool = db
-        .prepare(`SELECT * FROM artists WHERE LOWER(genres) LIKE ?`)
-        .all(`%"${val}"%`);
-    } else if (category_type === 'country') {
-      pool = db
-        .prepare(`SELECT * FROM artists WHERE LOWER(country) = ?`)
-        .all(val);
-    } else if (category_type === 'language') {
-      pool = db
-        .prepare(`SELECT * FROM artists WHERE LOWER(language) = ?`)
-        .all(val);
-    } else {
-      return res.status(400).json({ error: `Unknown category_type: ${category_type}` });
-    }
-  } else {
-    pool = db.prepare(`SELECT * FROM artists`).all();
+  if (pool === null) {
+    return res.status(400).json({
+      error: `Unknown category_type: ${category_type}`,
+    });
   }
 
   if (pool.length < 2) {
@@ -167,26 +120,31 @@ router.get('/random', (req, res) => {
     });
   }
 
-  // Weighted random sampling without replacement (Efraimidis-Spirakis algorithm).
-  // Each artist gets key = random^(1/popularity) — higher popularity → higher key on average.
-  for (const a of pool) {
-    const w = a.popularity || 4;
-    a._key = Math.pow(Math.random(), 1 / w);
+  const uniqueCount = new Set(
+    pool.map((artist) => normalizeArtistName(artist.name))
+  ).size;
+
+  if (uniqueCount < 2) {
+    return res.status(400).json({
+      error: 'Not enough unique artists in this category to sample.',
+      available: uniqueCount,
+    });
   }
-  pool.sort((a, b) => b._key - a._key);
 
-  const selected = pool.slice(0, Math.min(count, pool.length));
-  res.json({ artists: parseArtists(selected), total: selected.length });
-});
+  const selected = weightedSampleWithoutReplacement(
+    pool,
+    Math.min(count, uniqueCount)
+  );
 
-// ---------------------------------------------------------------------------
-// GET /api/artists/:id
-// ---------------------------------------------------------------------------
-router.get('/:id', (req, res) => {
-  const db = getDb();
-  const artist = db.prepare(`SELECT * FROM artists WHERE id = ?`).get(req.params.id);
+  res.json({ artists: selected, total: selected.length });
+}));
+
+router.get('/:id', asyncRoute(async (req, res) => {
+  const artists = await getStore().listArtists();
+  const artist = artists.find((row) => row.id === req.params.id);
+
   if (!artist) return res.status(404).json({ error: 'Artist not found.' });
-  res.json({ artist: parseArtist(artist) });
-});
+  res.json({ artist });
+}));
 
 module.exports = router;

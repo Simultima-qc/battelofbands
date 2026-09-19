@@ -25,8 +25,9 @@ deployment:
   preview_supported: false
 
 database:
+  # Current local/default provider. Public-alpha Postgres is code-ready but not provisioned yet.
   provider: sqlite
-  migrations_path: null
+  migrations_path: server/db/migrations
 
 environments:
   non_production: []
