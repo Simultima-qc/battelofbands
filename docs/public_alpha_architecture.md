@@ -42,6 +42,7 @@ Provider references checked for this decision:
 - Netlify Functions configuration: https://docs.netlify.com/build/functions/configuration/
 - Supabase Postgres connection guide: https://supabase.com/docs/guides/database/connecting-to-postgres
 - Supabase pooling guide: https://supabase.com/docs/guides/database/connecting-to-postgres/pooling-and-limits
+- Supabase stale-connection troubleshooting: https://supabase.com/docs/guides/troubleshooting/troubleshooting-connect_timeout-or-hanging-queries-in-vercel-serverless-functions-775f92
 
 ## 3. Current repository map
 
@@ -262,7 +263,17 @@ Runtime configuration should follow serverless-safe connection behavior:
 - DB client created once at module scope;
 - very small application-side pool (target: 1 connection per warm function instance unless evidence requires more);
 - TLS required;
-- prepared statements disabled if the selected driver/pooler combination requires it.
+- prepared statements disabled if the selected driver/pooler combination requires it;
+- stale-connection resilience for frozen/resumed serverless instances.
+
+Supabase documents that persistent clients such as Postgres.js can retain a TCP socket that becomes stale while a serverless function is frozen. On resume, reusing that socket can produce `CONNECT_TIMEOUT` errors or requests that hang until the function limit.
+
+The implementation must therefore include one bounded recovery strategy for transactional Postgres access, such as:
+
+- a short liveness preflight (for example `SELECT 1` raced against a short timeout) with client recycle on failure; or
+- narrowly scoped retry/reconnect handling for stale-socket / connection-timeout failures.
+
+Do **not** add broad automatic retries around completed business transactions. Recovery must not create duplicate votes, rounds, tournament completion, or ranking effects. The exact mechanism belongs to Slice A/B and must preserve the idempotency/concurrency requirements in section 7.7.
 
 ### 6.3 SQL client
 
@@ -586,6 +597,7 @@ A completed tournament and ranking result must still be present after:
 - browser refresh;
 - later API request;
 - function cold start/new invocation;
+- function freeze/resume or reuse of a warm instance after idle time, including recovery from a stale pooled TCP connection without hanging the request;
 - redeploy of application code that does not intentionally reset the database.
 
 ### Concurrency/retry validation
@@ -615,7 +627,8 @@ Scope:
 - seed;
 - async route conversion required by DB access;
 - transaction/concurrency correctness;
-- automated tests against the Postgres data-access contract where practical.
+- automated tests against the Postgres data-access contract where practical;
+- bounded stale-connection detection/recycle or retry behavior for the selected Postgres driver.
 
 No Netlify provisioning required to complete the code slice.
 
@@ -633,6 +646,7 @@ Scope:
 - runtime DB initialization;
 - health route;
 - serverless-safe error behavior;
+- integration of the selected DB liveness/recovery path with the function lifecycle;
 - local server remains usable.
 
 Depends on Slice A.
@@ -683,7 +697,8 @@ Scope:
 
 - execute the validation contract in section 12;
 - record evidence;
-- validate persistence across requests/cold starts;
+- validate persistence across requests/cold starts and warm-instance freeze/resume behavior;
+- validate stale-connection recovery does not hang requests or duplicate transactional side effects;
 - validate abandoned-completion semantics;
 - validate replay/rankings;
 - declare alpha ready for measurement/external testers or stop with defects.
