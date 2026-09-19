@@ -64,6 +64,9 @@ function initializeDb(pathOverride = process.env.BATTLE_OF_BANDS_DB_PATH || DEFA
     CREATE INDEX IF NOT EXISTS idx_matches_tournament
       ON tournament_matches(tournament_id, round);
 
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_matches_round_slot
+      ON tournament_matches(tournament_id, round, match_index);
+
     CREATE TABLE IF NOT EXISTS rankings (
       artist_id           TEXT PRIMARY KEY REFERENCES artists(id) ON DELETE CASCADE,
       points              INTEGER NOT NULL DEFAULT 0,
