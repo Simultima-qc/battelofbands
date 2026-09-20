@@ -21,14 +21,14 @@ ci:
   workflow_name: "server-tests.yml + client-tests.yml"
 
 deployment:
-  provider: null
-  preview_supported: false
+  provider: netlify
+  preview_supported: true
 
 database:
-  # Current local/default provider. Public-alpha Postgres is code-ready but not provisioned yet.
-  provider: sqlite
+  # Production uses Neon hosted Postgres; local development defaults to SQLite.
+  provider: postgres
   migrations_path: server/db/migrations
 
 environments:
   non_production: []
-  production: null
+  production: netlify
