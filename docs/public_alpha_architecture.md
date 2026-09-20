@@ -737,7 +737,7 @@ This architecture decision answers:
 7. **Validation:** automated checks plus production durability/concurrency smoke.
 8. **Next work:** five ordered implementation slices above.
 
-No runtime code, cloud resource, credential, production URL, database migration or deployment is created by this decision itself.
+The original Issue #22 architecture decision did not itself create runtime resources. Issue #31 subsequently provisioned Neon + Netlify and published the first public-alpha deployment.
 
 
 ## 16. Deployed public-alpha state — Issue #31
