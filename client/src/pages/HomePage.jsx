@@ -135,6 +135,16 @@ export default function HomePage({ sessionId, activeTournamentId, onStart }) {
         </div>
       )}
 
+      <section className="home-how" aria-labelledby="how-it-works-title">
+        <h2 id="how-it-works-title">{t('home.how.title')}</h2>
+        <p>{t('home.how.intro')}</p>
+        <ol>
+          <li>{t('home.how.step1')}</li>
+          <li>{t('home.how.step2')}</li>
+          <li>{t('home.how.step3')}</li>
+        </ol>
+      </section>
+
       {error && !loading && !categories && (
         <p className="home-error">{error}</p>
       )}
