@@ -35,7 +35,7 @@ Agents must preserve these invariants unless an Issue explicitly authorizes a ch
 
 ### Application Stack
 
-- **Backend:** Node.js + Express + SQLite (better-sqlite3)
+- **Backend:** Node.js + Express; SQLite (`better-sqlite3`) for local development and Postgres (`postgres`) in production
 - **Frontend:** React 18 + Vite + React Router
 - **Persistence:** adapter-backed persistence; local development defaults to SQLite, production uses Neon hosted Postgres through `DATABASE_URL`
 - **Postgres migrations:** versioned SQL under `server/db/migrations/`; application routes must remain database-agnostic
@@ -244,7 +244,7 @@ including:
 | 1.1 | 2026-09-19 | ChatGPT | Document adapter-backed SQLite/Postgres persistence and versioned migrations (Issue #25) |
 | 1.2 | 2026-09-19 | ChatGPT | Record code-level Netlify Function adapter with no active deployment (Issue #27) |
 | 1.3 | 2026-09-19 | Claude Sonnet 5 | Document explicit runtime environment contract, allow-listed CORS, and safe error responses; no deployment provisioned (Issue #29) |
-
+| 1.4 | 2026-09-19 | ChatGPT | Record active Neon + Netlify public-alpha deployment and smoke evidence (Issue #31) |
 
 ## Deployment Status — Issue #31
 
