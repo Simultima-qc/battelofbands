@@ -12,8 +12,14 @@ function harness() {
   }
 
   const documentRef = {
-    querySelector: () => null,
-    createElement: () => ({ dataset: {} }),
+    querySelector: () => appendedScripts.find(script => !script.removed) || null,
+    createElement: () => ({
+      dataset: {},
+      removed: false,
+      remove() {
+        this.removed = true
+      },
+    }),
     head: {
       appendChild(script) {
         appendedScripts.push(script)
@@ -187,4 +193,56 @@ test('page view and replay use standard event names and analytics failure never 
       categoryValue: 'Rock',
     }), false)
   })
+})
+
+
+test('failed initial gtag load can be retried without losing queued events', () => {
+  const h = harness()
+  const analytics = createAnalytics({
+    measurementId: 'G-TEST123',
+    windowRef: h.windowRef,
+    documentRef: h.documentRef,
+    storageRef: h.storageRef,
+  })
+
+  assert.equal(analytics.trackTournamentStarted({
+    categoryType: 'genre',
+    categoryValue: 'Alternative',
+    startSource: 'new',
+  }), true)
+
+  assert.equal(h.appendedScripts.length, 1)
+  const firstScript = h.appendedScripts[0]
+  assert.equal(typeof firstScript.onerror, 'function')
+
+  firstScript.onerror()
+  assert.equal(firstScript.removed, true)
+  assert.equal(firstScript.dataset.bobGaState, 'error')
+
+  assert.equal(analytics.trackVoteCast({
+    round: 1,
+    voteNumber: 1,
+    categoryType: 'genre',
+    categoryValue: 'Alternative',
+  }), true)
+
+  assert.equal(h.appendedScripts.length, 2)
+  const retryScript = h.appendedScripts[1]
+  assert.notEqual(retryScript, firstScript)
+  assert.equal(retryScript.dataset.bobGaState, 'loading')
+
+  retryScript.onload()
+  assert.equal(retryScript.dataset.bobGaState, 'loaded')
+
+  assert.equal(analytics.trackReplayStarted({
+    categoryType: 'genre',
+    categoryValue: 'Alternative',
+  }), true)
+
+  assert.equal(h.appendedScripts.length, 2)
+  assert.deepEqual(events(h.windowRef).map(entry => entry[1]), [
+    'tournament_started',
+    'vote_cast',
+    'replay_started',
+  ])
 })
