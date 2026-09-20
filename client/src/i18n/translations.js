@@ -6,6 +6,11 @@ export const translations = {
 
     // HomePage
     'home.subtitle': 'Choisis une catégorie, affronte 16 artistes et désigne ton champion !',
+    'home.how.title': 'Comment ça marche ?',
+    'home.how.intro': 'Battle of Bands est un jeu de tournoi musical : 16 artistes s’affrontent en duels jusqu’à ce qu’il ne reste qu’un champion.',
+    'home.how.step1': 'Choisis un genre musical, un pays ou une langue.',
+    'home.how.step2': 'Vote pour ton artiste préféré dans chacun des 15 duels.',
+    'home.how.step3': 'Découvre ton champion et compare les résultats au classement global.',
     'home.resume.message': 'Tu as un tournoi en cours !',
     'home.resume.button': 'Reprendre',
     'home.error.categories': 'Impossible de charger les catégories.',
@@ -71,6 +76,11 @@ export const translations = {
     'nav.activeTournament': '🏆 Tournament in progress',
 
     'home.subtitle': 'Pick a category, face 16 artists, and crown your champion!',
+    'home.how.title': 'How does it work?',
+    'home.how.intro': 'Battle of Bands is a music tournament game: 16 artists face off head-to-head until one champion remains.',
+    'home.how.step1': 'Choose a music genre, country, or language.',
+    'home.how.step2': 'Vote for your favourite artist in each of the 15 matchups.',
+    'home.how.step3': 'Crown your champion and compare results in the global rankings.',
     'home.resume.message': 'You have a tournament in progress!',
     'home.resume.button': 'Resume',
     'home.error.categories': 'Failed to load categories.',
@@ -131,6 +141,11 @@ export const translations = {
     'nav.activeTournament': '🏆 Torneo en curso',
 
     'home.subtitle': '¡Elige una categoría, enfrenta 16 artistas y corona a tu campeón!',
+    'home.how.title': '¿Cómo funciona?',
+    'home.how.intro': 'Battle of Bands es un juego de torneo musical: 16 artistas se enfrentan en duelos hasta que queda un solo campeón.',
+    'home.how.step1': 'Elige un género musical, un país o un idioma.',
+    'home.how.step2': 'Vota por tu artista favorito en cada uno de los 15 duelos.',
+    'home.how.step3': 'Descubre a tu campeón y compara los resultados en la clasificación global.',
     'home.resume.message': '¡Tienes un torneo en curso!',
     'home.resume.button': 'Reanudar',
     'home.error.categories': 'No se pudieron cargar las categorías.',

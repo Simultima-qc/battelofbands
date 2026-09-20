@@ -160,3 +160,34 @@
   border-color: var(--text2);
   background: var(--bg3);
 }
+
+
+.home-how {
+  margin: 48px 0 24px;
+  padding: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.home-how h2 {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+}
+
+.home-how p {
+  margin: 0 0 14px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+.home-how ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text2);
+  line-height: 1.7;
+}
+
+.home-how li + li {
+  margin-top: 4px;
+}
