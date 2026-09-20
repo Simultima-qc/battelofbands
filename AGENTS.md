@@ -24,10 +24,10 @@ Agents must preserve these invariants unless an Issue explicitly authorizes a ch
 ## Repository Topology
 
 - **Default branch:** `main`
-- **Production branch:** `main` (no separate production deployment exists yet)
+- **Production branch:** `main`
 - **Integration branch:** none (direct PRs to main)
 - **Delivery mode:** DIRECT (PR → review → merge to main)
-- **Active deployment:** none (local SQLite only; no staging/production environment)
+- **Active deployment:** Netlify production at `https://battle-of-bands-xjca.netlify.app`; production data is Neon Postgres; local development still defaults to SQLite
 
 ---
 
@@ -37,9 +37,9 @@ Agents must preserve these invariants unless an Issue explicitly authorizes a ch
 
 - **Backend:** Node.js + Express + SQLite (better-sqlite3)
 - **Frontend:** React 18 + Vite + React Router
-- **Persistence:** adapter-backed persistence; local development defaults to SQLite, while the accepted public-alpha target is hosted Postgres through `DATABASE_URL`
+- **Persistence:** adapter-backed persistence; local development defaults to SQLite, production uses Neon hosted Postgres through `DATABASE_URL`
 - **Postgres migrations:** versioned SQL under `server/db/migrations/`; application routes must remain database-agnostic
-- **Netlify target adapter/config:** code-level only; no Netlify site or active deployment is provisioned
+- **Netlify:** active production site serving the Vite client and Express API through a Netlify Function
 
 ### Directory Structure
 
@@ -141,14 +141,14 @@ Two separate workflows run on PR and push:
 - Both workflows target **Node.js 22**
 - Both use **npm ci** (clean install from package-lock.json)
 - No integration tests or end-to-end testing in CI
-- No deployment pipeline exists yet
+- Production deployment is currently manual through Netlify CLI; there is no automatic Git-to-Netlify production pipeline yet
 - PR checks run on all PRs; branch-specific push triggers exist for feature branches
 
 ---
 
 ## Environment Contract
 
-Interpretation of these variables is centralized in `server/config.js`; do not read `process.env` directly for them elsewhere. This is code-level configuration only — no Netlify site or Supabase project is provisioned by this contract (see Repository Topology above).
+Interpretation of these variables is centralized in `server/config.js`; do not read `process.env` directly for them elsewhere. Production is active on Netlify and connects server-side to Neon Postgres.
 
 **Client:** the production browser build calls the relative path `/api` (see `client/src/api.js`). There is no `VITE_API_URL`/`VITE_API_BASE`. Local Vite dev proxies `/api` to `http://localhost:3001` (see `client/vite.config.js`) and this must keep working unmodified.
 
@@ -156,7 +156,7 @@ Interpretation of these variables is centralized in `server/config.js`; do not r
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | Secret. Pooled runtime Postgres connection string (Supabase transaction-mode pooler). |
+| `DATABASE_URL` | Secret. Neon pooled/serverless Postgres connection string used by the Netlify Function. |
 
 `server/config.js`'s `resolveStoreProvider()` fails safe: it throws instead of falling back to SQLite whenever `DATABASE_URL` is missing in a **deployed runtime**. A deployed runtime is detected as `NODE_ENV=production` **or** `SITE_ID` present — `SITE_ID` is used because Netlify Functions do not inherit `netlify.toml`'s `[build.environment]` (build-time only) and do not reliably set `NODE_ENV` at runtime, but always expose `SITE_ID`. Local development and tests (neither signal present) still fall back to SQLite.
 
@@ -215,7 +215,7 @@ The global Express error handler (`server/index.js`) only forwards `err.message`
 - **No secrets in this repository.** All configuration is local and non-sensitive.
 - CI workflows do not access external services or credentials.
 - No cloud database credentials exist in the repository. Local SQLite requires none; Postgres credentials are supplied only through environment variables.
-- Future Supabase or deployment secrets must be added through [Playbook-defined secret management](https://github.com/Simultima-qc/AI-Development-Playbook), not hardcoded into files.
+- Future database or deployment secrets must be added through [Playbook-defined secret management](https://github.com/Simultima-qc/AI-Development-Playbook), not hardcoded into files.
 
 ---
 
@@ -244,3 +244,12 @@ including:
 | 1.1 | 2026-09-19 | ChatGPT | Document adapter-backed SQLite/Postgres persistence and versioned migrations (Issue #25) |
 | 1.2 | 2026-09-19 | ChatGPT | Record code-level Netlify Function adapter with no active deployment (Issue #27) |
 | 1.3 | 2026-09-19 | Claude Sonnet 5 | Document explicit runtime environment contract, allow-listed CORS, and safe error responses; no deployment provisioned (Issue #29) |
+
+
+## Deployment Status — Issue #31
+
+- Public alpha is live on Netlify at `https://battle-of-bands-xjca.netlify.app`.
+- Production persistence is Neon hosted Postgres, project `lingering-hall-47497343`, branch `production`.
+- Migration `001_initial_postgres.sql` is applied and the canonical 726-artist catalog is seeded.
+- Basic production smoke is green for `/`, `/api/health`, and `/api/artists/categories`.
+- Full durable tournament/retry/cold-start validation remains Slice E work.
