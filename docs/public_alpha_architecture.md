@@ -1,9 +1,10 @@
 # Public Alpha Architecture Decision
 
-**Status:** Accepted for implementation planning  
+**Status:** Accepted and deployed for public alpha  
 **Issue:** #22 — Public Alpha Foundation  
 **Date:** 2026-09-19  
-**Parent roadmap:** #17 — Public Alpha Roadmap
+**Parent roadmap:** #17 — Public Alpha Roadmap  
+**Deployment:** #31 — Neon + Netlify public alpha
 
 ## 1. Decision summary
 
@@ -11,14 +12,14 @@ Battle of Bands public alpha will use the smallest architecture that preserves t
 
 - **Frontend:** React/Vite static build on Netlify.
 - **API:** the existing Express application adapted to a **Netlify Function**, exposed behind the existing same-origin `/api/*` path.
-- **Database:** **Supabase hosted Postgres**.
-- **Runtime DB access:** server-side SQL through a Postgres driver, using Supabase's **transaction-mode pooler** for serverless traffic.
+- **Database:** **Neon hosted Postgres**.
+- **Runtime DB access:** server-side SQL through a Postgres driver, using Neon's pooled Postgres endpoint for serverless traffic.
 - **Authentication:** none for the public alpha.
 - **Client API contract:** keep `/api` relative in production.
 - **Secrets:** provider-managed environment variables; no secrets committed to the repository.
-- **Production deployment:** one Netlify site, one Supabase project.
+- **Production deployment:** one Netlify site, one Neon project.
 
-This is an intended architecture decision. The repository is still local-only until the later implementation and deployment Issues are completed.
+This topology is now deployed for the public alpha. Local development still defaults to SQLite; production uses Netlify + Neon.
 
 ## 2. Why this topology
 
@@ -40,7 +41,7 @@ Provider references checked for this decision:
 
 - Netlify Express guide: https://docs.netlify.com/build/frameworks/framework-setup-guides/express/
 - Netlify Functions configuration: https://docs.netlify.com/build/functions/configuration/
-- Supabase Postgres connection guide: https://supabase.com/docs/guides/database/connecting-to-postgres
+- Neon Postgres connection guide: https://supabase.com/docs/guides/database/connecting-to-postgres
 - Supabase pooling guide: https://supabase.com/docs/guides/database/connecting-to-postgres/pooling-and-limits
 - Supabase stale-connection troubleshooting: https://supabase.com/docs/guides/troubleshooting/troubleshooting-connect_timeout-or-hanging-queries-in-vercel-serverless-functions-775f92
 
@@ -186,7 +187,7 @@ Netlify site
           |
           | TLS / pooled Postgres connection
           v
-     Supabase Postgres
+     Neon Postgres
 ```
 
 ### 5.1 Netlify
@@ -240,9 +241,9 @@ Benefits:
 
 ## 6. Database decision
 
-### 6.1 Supabase hosted Postgres
+### 6.1 Neon hosted Postgres
 
-Supabase Postgres is the selected durable store for the public alpha.
+Neon Postgres is the selected durable store for the public alpha.
 
 The application will continue to own its server-side API and business logic. The browser will **not** talk directly to Supabase for application data in this phase.
 
@@ -256,7 +257,7 @@ Reasons:
 
 ### 6.2 Runtime connection
 
-The Netlify Function should connect through the Supabase transaction-mode pooler.
+The Netlify Function connects through the Neon pooled endpoint.
 
 Runtime configuration should follow serverless-safe connection behavior:
 
@@ -447,7 +448,7 @@ Secret.
 Purpose:
 
 - runtime Postgres connection;
-- points at the Supabase serverless-appropriate pooled endpoint.
+- points at the Neon pooled/serverless Postgres endpoint.
 
 Stored in Netlify environment variables.
 
@@ -672,11 +673,11 @@ Depends on A/B as appropriate.
 
 **Proposed issue title:**
 
-> Public Alpha Deployment — provision Supabase and Netlify and publish the first alpha
+> Public Alpha Deployment — provision Neon and Netlify and publish the first alpha
 
 Scope:
 
-- create/link Supabase project;
+- create/link Neon project;
 - apply migrations;
 - seed artists;
 - configure secrets;
@@ -732,7 +733,7 @@ This architecture decision answers:
 
 1. **Frontend:** Netlify static Vite build.
 2. **API:** existing Express app adapted into a same-site Netlify Function.
-3. **Durable data:** Supabase hosted Postgres.
+3. **Durable data:** Neon hosted Postgres.
 4. **Runtime DB connectivity:** serverless-safe pooled Postgres connection.
 5. **Secrets:** Netlify/provider environment variables; none in Git.
 6. **SQLite exit:** explicit async SQL/data-access migration with real Postgres transactions and migrations.
@@ -740,3 +741,16 @@ This architecture decision answers:
 8. **Next work:** five ordered implementation slices above.
 
 No runtime code, cloud resource, credential, production URL, database migration or deployment is created by this decision itself.
+
+
+## 16. Deployed public-alpha state — Issue #31
+
+The public-alpha topology is now live:
+
+- Netlify production site: `https://battle-of-bands-xjca.netlify.app`;
+- Neon project: `lingering-hall-47497343`, branch `production`;
+- migration `001_initial_postgres.sql` applied;
+- canonical 726-artist catalog seeded;
+- basic production smoke passed for `/`, `/api/health`, and `/api/artists/categories`.
+
+This closes the provisioning/deployment slice. The full durable 16-artist production release gate remains a separate Slice E.
