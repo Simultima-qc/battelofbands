@@ -27,7 +27,7 @@ Agents must preserve these invariants unless an Issue explicitly authorizes a ch
 - **Production branch:** `main`
 - **Integration branch:** none (direct PRs to main)
 - **Delivery mode:** DIRECT (PR → review → merge to main)
-- **Active deployment:** Netlify production at `https://battle-of-bands-xjca.netlify.app`; production data is Neon Postgres; local development still defaults to SQLite
+- **Active deployment:** Netlify production at `https://battle-of-bands-game.netlify.app`; production data is Neon Postgres; local development still defaults to SQLite
 
 ---
 
@@ -47,7 +47,7 @@ Agents must preserve these invariants unless an Issue explicitly authorizes a ch
 server/
   ├── index.js           # Local Express server + reusable createApp() boundary
   ├── runtime.js         # Single-flight serverless store initialization
-  ├── netlify/functions/ # Netlify Function adapter (code-only until provisioning)
+  ├── netlify/functions/ # Active Netlify Function adapter for production
   ├── db/
   │   ├── schema.js      # Schema definition
   │   └── seed.js        # 726-artist dataset loader
@@ -204,9 +204,9 @@ The global Express error handler (`server/index.js`) only forwards `err.message`
 - Do not change the MVP game loop (16/15/4, forced choices, no skips, no ties, immediate advancement).
 - Do not change ranking semantics (personal result ≠ aggregate ranking).
 - Do not change completion accounting (abandoned tournaments do not count).
-- Do not introduce hidden deployment/environment facts (if a deployment provider is chosen later, it becomes a new Issue).
+- Do not introduce or change deployment/environment facts without an explicit Issue and recorded validation evidence.
 - Do not add authentication, accounts, analytics, multiplayer, or monetization to the MVP.
-- Do not provision or switch a deployed database/environment without an explicit Issue. Issue #25 authorizes the code-level Postgres data-layer migration only; cloud provisioning remains separate.
+- Do not provision or switch a deployed database/environment without an explicit Issue. Issue #31 authorized the current Neon + Netlify public-alpha deployment.
 
 ---
 
@@ -245,11 +245,12 @@ including:
 | 1.2 | 2026-09-19 | ChatGPT | Record code-level Netlify Function adapter with no active deployment (Issue #27) |
 | 1.3 | 2026-09-19 | Claude Sonnet 5 | Document explicit runtime environment contract, allow-listed CORS, and safe error responses; no deployment provisioned (Issue #29) |
 | 1.4 | 2026-09-19 | ChatGPT | Record active Neon + Netlify public-alpha deployment and smoke evidence (Issue #31) |
+| 1.5 | 2026-09-19 | ChatGPT | Lock zero-cost public-alpha URL strategy and clean Netlify hostname (Issue #34) |
 
 ## Deployment Status — Issue #31
 
-- Public alpha is live on Netlify at `https://battle-of-bands-xjca.netlify.app`.
+- Public alpha is live on Netlify at `https://battle-of-bands-game.netlify.app`.
 - Production persistence is Neon hosted Postgres, project `lingering-hall-47497343`, branch `production`.
 - Migration `001_initial_postgres.sql` is applied and the canonical 726-artist catalog is seeded.
 - Basic production smoke is green for `/`, `/api/health`, and `/api/artists/categories`.
-- Full durable tournament/retry/cold-start validation remains Slice E work.
+- Full durable tournament/retry/cold-start validation passed in Issue #33; public alpha is release-ready.

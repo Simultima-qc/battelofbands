@@ -744,10 +744,24 @@ The original Issue #22 architecture decision did not itself create runtime resou
 
 The public-alpha topology is now live:
 
-- Netlify production site: `https://battle-of-bands-xjca.netlify.app`;
+- Netlify production site: `https://battle-of-bands-game.netlify.app`;
 - Neon project: `lingering-hall-47497343`, branch `production`;
 - migration `001_initial_postgres.sql` applied;
 - canonical 726-artist catalog seeded;
 - basic production smoke passed for `/`, `/api/health`, and `/api/artists/categories`.
 
-This closes the provisioning/deployment slice. The full durable 16-artist production release gate remains a separate Slice E.
+The provisioning/deployment slice is closed, and the full durable 16-artist production release gate passed in Issue #33.
+
+
+## 17. Public-alpha URL strategy — Issue #34
+
+Gate 3 locks a zero-cost, reversible URL strategy for the public alpha:
+
+- stable provider URL: `https://battle-of-bands-game.netlify.app`;
+- Battle of Bands remains isolated on its own Netlify site;
+- same-origin `/api/*` is preserved;
+- no custom domain is purchased for the alpha;
+- existing unrelated portfolio domains are not reused for this music product;
+- a standalone custom domain is reconsidered only after external replay/repeat, acquisition, sharing, or monetization evidence justifies it.
+
+This keeps branding and analytics isolated without adding domain cost or DNS maintenance before validation.
