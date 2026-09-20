@@ -25,11 +25,12 @@ export function createAnalytics({
 } = {}) {
   const id = String(measurementId || '').trim()
   const storage = storageRef === undefined ? safeStorage(windowRef) : storageRef
-  let initialized = false
+  let queueConfigured = false
+  let scriptState = 'idle'
 
-  function initialize() {
-    if (initialized) return true
-    if (!isValidMeasurementId(id) || !windowRef || !documentRef) return false
+  function configureQueue() {
+    if (queueConfigured) return true
+    if (!isValidMeasurementId(id) || !windowRef) return false
 
     try {
       windowRef.dataLayer = windowRef.dataLayer || []
@@ -37,22 +38,61 @@ export function createAnalytics({
         windowRef.dataLayer.push(arguments)
       }
 
-      const selector = `script[data-bob-ga="${id}"]`
-      if (!documentRef.querySelector(selector)) {
-        const script = documentRef.createElement('script')
-        script.async = true
-        script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`
-        script.dataset.bobGa = id
-        documentRef.head.appendChild(script)
-      }
-
       windowRef.gtag('js', new Date())
       windowRef.gtag('config', id, { send_page_view: false })
-      initialized = true
+      queueConfigured = true
       return true
     } catch {
       return false
     }
+  }
+
+  function ensureScript() {
+    if (!documentRef) return false
+    if (windowRef?.google_tag_manager) {
+      scriptState = 'loaded'
+      return true
+    }
+    if (scriptState === 'loading' || scriptState === 'loaded') return true
+
+    try {
+      const selector = `script[data-bob-ga="${id}"]`
+      const existing = documentRef.querySelector(selector)
+
+      if (existing) {
+        existing.remove?.()
+      }
+
+      const script = documentRef.createElement('script')
+      script.async = true
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`
+      script.dataset.bobGa = id
+      script.dataset.bobGaState = 'loading'
+
+      script.onload = () => {
+        scriptState = 'loaded'
+        script.dataset.bobGaState = 'loaded'
+      }
+
+      script.onerror = () => {
+        scriptState = 'idle'
+        script.dataset.bobGaState = 'error'
+        script.remove?.()
+      }
+
+      scriptState = 'loading'
+      documentRef.head.appendChild(script)
+      return true
+    } catch {
+      scriptState = 'idle'
+      return false
+    }
+  }
+
+  function initialize() {
+    if (!isValidMeasurementId(id) || !windowRef || !documentRef) return false
+    if (!configureQueue()) return false
+    return ensureScript()
   }
 
   function emit(name, params = {}) {
