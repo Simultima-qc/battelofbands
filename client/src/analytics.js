@@ -9,13 +9,22 @@ function safeNumber(value) {
   return Number.isFinite(number) ? number : undefined
 }
 
+function safeStorage(windowRef) {
+  try {
+    return windowRef?.localStorage || null
+  } catch {
+    return null
+  }
+}
+
 export function createAnalytics({
   measurementId = DEFAULT_MEASUREMENT_ID,
   windowRef = typeof window !== 'undefined' ? window : null,
   documentRef = typeof document !== 'undefined' ? document : null,
-  storageRef = typeof window !== 'undefined' ? window.localStorage : null,
+  storageRef,
 } = {}) {
   const id = String(measurementId || '').trim()
+  const storage = storageRef === undefined ? safeStorage(windowRef) : storageRef
   let initialized = false
 
   function initialize() {
@@ -101,7 +110,7 @@ export function createAnalytics({
     const key = `bob-ga-completed:${tournamentId}`
 
     try {
-      if (storageRef?.getItem(key) === '1') return false
+      if (storage?.getItem(key) === '1') return false
     } catch {
       // Analytics must remain non-blocking when storage is unavailable.
     }
@@ -115,7 +124,7 @@ export function createAnalytics({
 
     if (emitted) {
       try {
-        storageRef?.setItem(key, '1')
+        storage?.setItem(key, '1')
       } catch {
         // Event delivery matters more than local dedupe persistence.
       }
