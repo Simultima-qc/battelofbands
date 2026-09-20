@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
+import { trackTournamentStarted } from '../analytics'
 import './HomePage.css'
 
 const FLAG_MAP = {
@@ -43,6 +44,11 @@ export default function HomePage({ sessionId, activeTournamentId, onStart }) {
     setError(null)
     try {
       const data = await api.startTournament(sessionId, activeType, selected)
+      trackTournamentStarted({
+        categoryType: activeType,
+        categoryValue: selected,
+        startSource: 'new',
+      })
       onStart(data.tournament.id)
     } catch (e) {
       setError(e.message)

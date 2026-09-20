@@ -1,9 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
 import { isActiveTournament } from '../lib/tournamentLifecycle'
 import { deriveTournamentProgress } from '../lib/tournamentProgress'
+import {
+  trackReplayStarted,
+  trackTournamentCompletedOnce,
+  trackTournamentStarted,
+  trackVoteCast,
+} from '../analytics'
 import Bracket from '../components/Bracket'
 import WinnerScreen from '../components/WinnerScreen'
 import './TournamentPage.css'
@@ -27,6 +33,7 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
   const [error, setError] = useState(null)
   const [replaying, setReplaying] = useState(false)
   const [replayError, setReplayError] = useState(null)
+  const previousStatusRef = useRef(null)
 
   const loadTournament = useCallback(async () => {
     try {
@@ -48,9 +55,41 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
     }
   }, [tournament, onEnd])
 
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current
+
+    if (previousStatus === 'in_progress' && tournament?.status === 'completed') {
+      const createdAt = Date.parse(tournament.created_at)
+      const completedAt = Date.parse(tournament.completed_at)
+      const completionTimeSeconds = Number.isFinite(createdAt) && Number.isFinite(completedAt)
+        ? Math.max(0, Math.round((completedAt - createdAt) / 1000))
+        : undefined
+
+      trackTournamentCompletedOnce(tournament.id, {
+        categoryType: tournament.category_type,
+        categoryValue: tournament.category_value,
+        completionTimeSeconds,
+        votesCast: 15,
+      })
+    }
+
+    previousStatusRef.current = tournament?.status || null
+  }, [tournament])
+
   async function handleVote(matchId, winnerId) {
     try {
+      const match = bracket?.flat().find(item => item.id === matchId)
+      const progressBeforeVote = deriveTournamentProgress(bracket)
+
       await api.submitMatch(id, matchId, winnerId)
+
+      trackVoteCast({
+        round: match?.round,
+        voteNumber: progressBeforeVote.done + 1,
+        categoryType: tournament?.category_type,
+        categoryValue: tournament?.category_value,
+      })
+
       await loadTournament()
     } catch (e) {
       setError(e.message)
@@ -73,6 +112,17 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
         tournament.category_type,
         tournament.category_value
       )
+
+      trackTournamentStarted({
+        categoryType: tournament.category_type,
+        categoryValue: tournament.category_value,
+        startSource: 'replay',
+      })
+      trackReplayStarted({
+        categoryType: tournament.category_type,
+        categoryValue: tournament.category_value,
+      })
+
       onStart(data.tournament.id)
     } catch (e) {
       setReplayError(e.message)
