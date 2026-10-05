@@ -11,7 +11,7 @@
 Agents must preserve these invariants unless an Issue explicitly authorizes a change:
 
 - **MVP tournament size:** 16 artists
-- **MVP decisions per tournament:** 15 forced choices
+- **MVP decisions per tournament:** 15 real preference choices; Round 1 unknown-pair rerolls do not count as decisions
 - **MVP tournament structure:** 4 rounds (Round of 16 → Quarterfinals → Semifinals → Final)
 - **Artist selection:** popularity-weighted random sampling without duplicate identities
 - **Abandoned tournament accounting:** abandoned tournaments do not count as completed/played
@@ -120,6 +120,7 @@ Local development may continue to use SQLite without cloud credentials. The serv
 | GET | `/api/artists/random?category_type=<type>&category_value=<value>` | Popularity-weighted sample of eligible artists (32 by default; not tournament-size binding) |
 | POST | `/api/tournament/start` | Create MVP tournament: 16 artists / 15 decisions / 4 rounds |
 | POST | `/api/tournament/:id/match` | Record one match vote and advance tournament state |
+| POST | `/api/tournament/:id/match/reroll` | Replace an unresolved Round 1 pair when neither artist is known; no vote/progress/ranking side effect |
 | GET | `/api/tournament/:id` | Fetch tournament state (bracket, completed rounds, current match) |
 | GET | `/api/rankings` | Aggregate app rankings (artist win rates across all completed tournaments) |
 
@@ -201,11 +202,11 @@ The global Express error handler (`server/index.js`) only forwards `err.message`
 
 ## Implementation Constraints
 
-- Do not change the MVP game loop (16/15/4, forced choices, no skips, no ties, immediate advancement).
+- Do not change the MVP game loop (16 artists / 15 real preference decisions / 4 rounds). Issue #48 authorizes only the Round 1 unknown-pair reroll exception: it is not a vote, does not advance progress, and does not affect rankings.
 - Do not change ranking semantics (personal result ≠ aggregate ranking).
 - Do not change completion accounting (abandoned tournaments do not count).
 - Do not introduce or change deployment/environment facts without an explicit Issue and recorded validation evidence.
-- Do not add authentication, accounts, analytics, multiplayer, or monetization to the MVP.
+- Do not add authentication, accounts, multiplayer, or monetization to the MVP. Analytics must remain limited to approved product-measurement events and must never alter gameplay state.
 - Do not provision or switch a deployed database/environment without an explicit Issue. Issue #31 authorized the current Neon + Netlify public-alpha deployment.
 
 ---
@@ -246,6 +247,7 @@ including:
 | 1.3 | 2026-09-19 | Claude Sonnet 5 | Document explicit runtime environment contract, allow-listed CORS, and safe error responses; no deployment provisioned (Issue #29) |
 | 1.4 | 2026-09-19 | ChatGPT | Record active Neon + Netlify public-alpha deployment and smoke evidence (Issue #31) |
 | 1.5 | 2026-09-19 | ChatGPT | Lock zero-cost public-alpha URL strategy and clean Netlify hostname (Issue #34) |
+| 1.6 | 2026-10-04 | ChatGPT | Authorize retry-safe Round 1 unknown-pair rerolls without preference/ranking pollution (Issue #48) |
 
 ## Deployment Status — Issue #31
 
