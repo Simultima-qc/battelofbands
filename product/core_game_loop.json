@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "status": "MVP_PRODUCT_HYPOTHESIS",
   "product": "Battle of Bands",
   "core_loop": [
@@ -19,7 +19,8 @@
       "Semifinals",
       "Final"
     ],
-    "user_selectable_bracket_size": false
+    "user_selectable_bracket_size": false,
+    "decision_semantics": "REAL_PREFERENCE_VOTES"
   },
   "category_eligibility": {
     "dimensions": [
@@ -46,12 +47,24 @@
   },
   "match_interaction": {
     "prompt": "Which artist do you prefer?",
-    "interaction": "ONE_FORCED_BINARY_CHOICE",
+    "interaction": "ONE_BINARY_PREFERENCE_CHOICE_OR_ROUND_ONE_UNKNOWN_PAIR_REROLL",
     "skip_allowed": false,
     "tie_allowed": false,
     "rating_scale": false,
     "explanation_required": false,
-    "immediate_next_match": true
+    "immediate_next_match": true,
+    "unknown_pair_reroll": {
+      "allowed": true,
+      "rounds": [
+        1
+      ],
+      "counts_as_vote": false,
+      "advances_progress": false,
+      "affects_rankings": false,
+      "replacement_policy": "SAME_CATEGORY_POPULARITY_WEIGHTED_UNUSED_PAIR",
+      "preserve_match_identity": true,
+      "retry_semantics": "EXPECTED_PAIR_IDEMPOTENCY"
+    }
   },
   "end_result": {
     "required": [
@@ -83,7 +96,8 @@
     "last_completed_round",
     "immediate_replay",
     "category_type",
-    "category_value"
+    "category_value",
+    "unknown_pair_rerolled"
   ],
   "non_goals": [
     "ACCOUNTS_AUTH",
