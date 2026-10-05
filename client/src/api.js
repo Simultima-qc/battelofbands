@@ -7,7 +7,9 @@ async function req(path, options = {}) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || 'Erreur réseau')
+    const error = new Error(err.error || 'Erreur réseau')
+    if (err.code) error.code = err.code
+    throw error
   }
   return res.json()
 }
@@ -29,6 +31,15 @@ export const api = {
     req(`/tournament/${tournamentId}/match`, {
       method: 'POST',
       body: JSON.stringify({ match_id: matchId, winner_id: winnerId }),
+    }),
+  rerollUnknownPair: (tournamentId, match) =>
+    req(`/tournament/${tournamentId}/match/reroll`, {
+      method: 'POST',
+      body: JSON.stringify({
+        match_id: match.id,
+        expected_artist1_id: match.artist1_id,
+        expected_artist2_id: match.artist2_id,
+      }),
     }),
   getActiveSession: (sessionId) => req(`/tournament/session/${sessionId}`),
 
