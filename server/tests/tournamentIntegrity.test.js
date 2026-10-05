@@ -53,6 +53,17 @@ function seedFixture(db) {
       popularity: 6,
     });
   }
+
+  for (let i = 1; i <= 20; i += 1) {
+    seedArtist(db, {
+      id: `pop-${i}`,
+      name: `Pop Artist ${i}`,
+      country: 'GB',
+      language: 'English',
+      genres: ['Pop'],
+      popularity: 5 + (i % 5),
+    });
+  }
 }
 
 async function withApi(run) {
@@ -272,5 +283,139 @@ test('MVP tournament API enforces 16 unique artists and defers rankings until co
     });
     assert.equal(completeAgain.response.status, 200);
     assert.equal(rankingTotals(db).tournaments_played, 16);
+  });
+});
+
+
+test('round-one unknown-pair reroll replaces both artists without recording a preference', async () => {
+  await withApi(async ({ db, request }) => {
+    const started = await request('/api/tournament/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_session: 'reroll-session',
+        category_type: 'genre',
+        category_value: 'Pop',
+      }),
+    });
+
+    assert.equal(started.response.status, 201);
+    const tournamentId = started.body.tournament.id;
+    const firstMatch = started.body.bracket[0][0];
+    const originalIds = new Set(
+      started.body.bracket[0].flatMap((match) => [
+        match.artist1_id,
+        match.artist2_id,
+      ])
+    );
+
+    const payload = {
+      match_id: firstMatch.id,
+      expected_artist1_id: firstMatch.artist1_id,
+      expected_artist2_id: firstMatch.artist2_id,
+    };
+
+    const rerolled = await request(
+      `/api/tournament/${tournamentId}/match/reroll`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+
+    assert.equal(rerolled.response.status, 200);
+    assert.equal(rerolled.body.rerolled, true);
+
+    const updatedMatch = rerolled.body.bracket[0]
+      .find((match) => match.id === firstMatch.id);
+    assert.ok(updatedMatch);
+    assert.notEqual(updatedMatch.artist1_id, firstMatch.artist1_id);
+    assert.notEqual(updatedMatch.artist2_id, firstMatch.artist2_id);
+    assert.equal(originalIds.has(updatedMatch.artist1_id), false);
+    assert.equal(originalIds.has(updatedMatch.artist2_id), false);
+    assert.equal(updatedMatch.winner_id, null);
+
+    const roundOneIds = rerolled.body.bracket[0].flatMap((match) => [
+      match.artist1_id,
+      match.artist2_id,
+    ]);
+    assert.equal(new Set(roundOneIds).size, 16);
+    assert.equal(
+      rerolled.body.bracket.flat().filter((match) => match.winner_id).length,
+      0
+    );
+    assert.deepEqual(rankingTotals(db), {
+      points: 0,
+      wins: 0,
+      tournaments_played: 0,
+    });
+
+    const duplicate = await request(
+      `/api/tournament/${tournamentId}/match/reroll`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+
+    assert.equal(duplicate.response.status, 200);
+    assert.equal(duplicate.body.rerolled, false);
+    assert.equal(duplicate.body.reason, 'already_rerolled');
+
+    const duplicateMatch = duplicate.body.bracket[0]
+      .find((match) => match.id === firstMatch.id);
+    assert.equal(duplicateMatch.artist1_id, updatedMatch.artist1_id);
+    assert.equal(duplicateMatch.artist2_id, updatedMatch.artist2_id);
+
+    const voted = await request(`/api/tournament/${tournamentId}/match`, {
+      method: 'POST',
+      body: JSON.stringify({
+        match_id: updatedMatch.id,
+        winner_id: updatedMatch.artist1_id,
+      }),
+    });
+    assert.equal(voted.response.status, 200);
+
+    const playedReroll = await request(
+      `/api/tournament/${tournamentId}/match/reroll`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          match_id: updatedMatch.id,
+          expected_artist1_id: updatedMatch.artist1_id,
+          expected_artist2_id: updatedMatch.artist2_id,
+        }),
+      }
+    );
+    assert.equal(playedReroll.response.status, 400);
+    assert.equal(playedReroll.body.code, 'REROLL_MATCH_ALREADY_PLAYED');
+  });
+});
+
+test('unknown-pair reroll returns a controlled exhausted-pool response', async () => {
+  await withApi(async ({ request }) => {
+    const started = await request('/api/tournament/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_session: 'reroll-exhausted-session',
+        category_type: 'genre',
+        category_value: 'Rock',
+      }),
+    });
+
+    const match = started.body.bracket[0][0];
+    const response = await request(
+      `/api/tournament/${started.body.tournament.id}/match/reroll`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          match_id: match.id,
+          expected_artist1_id: match.artist1_id,
+          expected_artist2_id: match.artist2_id,
+        }),
+      }
+    );
+
+    assert.equal(response.response.status, 409);
+    assert.equal(response.body.code, 'REROLL_POOL_EXHAUSTED');
   });
 });
