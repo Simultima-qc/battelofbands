@@ -50,6 +50,17 @@ function fixtureArtists() {
     });
   }
 
+  for (let i = 1; i <= 20; i += 1) {
+    artists.push({
+      id: `pop-${i}`,
+      name: `Pop Artist ${i}`,
+      country: 'GB',
+      language: 'English',
+      genres: ['Pop'],
+      popularity: 5 + (i % 5),
+    });
+  }
+
   return artists;
 }
 
@@ -225,8 +236,8 @@ test('Postgres migration, seed, tournament and retry contracts', {
     const firstSeed = await store.seedArtists(fixtureArtists());
     const secondSeed = await store.seedArtists(fixtureArtists());
 
-    assert.equal(firstSeed.total, 32);
-    assert.equal(secondSeed.total, 32);
+    assert.equal(firstSeed.total, 52);
+    assert.equal(secondSeed.total, 52);
 
     const artistRows = await admin`
       SELECT id, name
@@ -242,6 +253,71 @@ test('Postgres migration, seed, tournament and retry contracts', {
       assert.ok(categories.body.categories.genre.includes('Rock'));
       assert.ok(!categories.body.categories.genre.includes('Jazz'));
       assert.equal(categories.body.categories._counts.genre.Rock, 16);
+      assert.equal(categories.body.categories._counts.genre.Pop, 20);
+
+      const rerollStarted = await request('/api/tournament/start', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_session: 'postgres-reroll-session',
+          category_type: 'genre',
+          category_value: 'Pop',
+        }),
+      });
+      assert.equal(rerollStarted.response.status, 201);
+
+      const rerollTournamentId = rerollStarted.body.tournament.id;
+      const rerollMatch = rerollStarted.body.bracket[0][0];
+      const rerollPayload = JSON.stringify({
+        match_id: rerollMatch.id,
+        expected_artist1_id: rerollMatch.artist1_id,
+        expected_artist2_id: rerollMatch.artist2_id,
+      });
+
+      const concurrentRerolls = await Promise.all([
+        request(`/api/tournament/${rerollTournamentId}/match/reroll`, {
+          method: 'POST',
+          body: rerollPayload,
+        }),
+        request(`/api/tournament/${rerollTournamentId}/match/reroll`, {
+          method: 'POST',
+          body: rerollPayload,
+        }),
+      ]);
+
+      assert.deepEqual(
+        concurrentRerolls.map((result) => result.response.status).sort(),
+        [200, 200]
+      );
+      assert.equal(
+        concurrentRerolls.filter((result) => result.body.rerolled === true).length,
+        1
+      );
+      assert.equal(
+        concurrentRerolls.filter((result) => result.body.rerolled === false).length,
+        1
+      );
+      assert.deepEqual(await rankingTotals(admin), {
+        points: 0,
+        wins: 0,
+        tournaments_played: 0,
+      });
+
+      const rerollState = await request(
+        `/api/tournament/${rerollTournamentId}`
+      );
+      const finalRerollMatch = rerollState.body.bracket[0]
+        .find((match) => match.id === rerollMatch.id);
+      assert.notEqual(finalRerollMatch.artist1_id, rerollMatch.artist1_id);
+      assert.notEqual(finalRerollMatch.artist2_id, rerollMatch.artist2_id);
+      assert.equal(
+        new Set(
+          rerollState.body.bracket[0].flatMap((match) => [
+            match.artist1_id,
+            match.artist2_id,
+          ])
+        ).size,
+        16
+      );
 
       const started = await request('/api/tournament/start', {
         method: 'POST',
