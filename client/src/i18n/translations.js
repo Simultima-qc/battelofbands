@@ -43,6 +43,10 @@ export const translations = {
     'match.instruction': 'Clique sur ton artiste préféré !',
     'match.progress': '{done} / {total} matchs joués',
     'match.vote': '✓ Voter',
+    'match.reroll': 'Je ne connais aucun des deux',
+    'match.reroll.loading': 'Recherche de deux autres artistes...',
+    'match.reroll.exhausted': 'Il n’y a plus assez d’artistes inutilisés dans cette catégorie.',
+    'match.reroll.error': 'Impossible de remplacer cette paire pour le moment.',
 
     // WinnerScreen
     'winner.title': 'Champion !',
@@ -110,6 +114,10 @@ export const translations = {
     'match.instruction': 'Click on your favourite artist!',
     'match.progress': '{done} / {total} matches played',
     'match.vote': '✓ Vote',
+    'match.reroll': "I don't know either artist",
+    'match.reroll.loading': 'Finding two other artists...',
+    'match.reroll.exhausted': 'There are not enough unused artists left in this category.',
+    'match.reroll.error': 'This pair cannot be replaced right now.',
 
     'winner.title': 'Champion!',
     'winner.category': 'Category:',
@@ -175,6 +183,10 @@ export const translations = {
     'match.instruction': '¡Haz clic en tu artista favorito!',
     'match.progress': '{done} / {total} partidos jugados',
     'match.vote': '✓ Votar',
+    'match.reroll': 'No conozco a ninguno de los dos',
+    'match.reroll.loading': 'Buscando otros dos artistas...',
+    'match.reroll.exhausted': 'No quedan suficientes artistas sin usar en esta categoría.',
+    'match.reroll.error': 'No se puede reemplazar este duelo ahora mismo.',
 
     'winner.title': '¡Campeón!',
     'winner.category': 'Categoría:',
