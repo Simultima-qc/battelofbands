@@ -202,3 +202,29 @@
   }
   .compact-vs { font-size: 1.2rem; text-align: center; }
 }
+
+
+.compact-reroll-wrap {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.compact-reroll {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.65rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.compact-reroll:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.compact-reroll-error {
+  margin: 0.65rem auto 0;
+  max-width: 34rem;
+  font-size: 0.9rem;
+}
