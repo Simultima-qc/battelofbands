@@ -246,3 +246,33 @@ test('failed initial gtag load can be retried without losing queued events', () 
     'replay_started',
   ])
 })
+
+
+test('unknown-pair reroll is measured separately from preference votes', () => {
+  const h = harness()
+  const analytics = createAnalytics({
+    measurementId: 'G-TEST123',
+    windowRef: h.windowRef,
+    documentRef: h.documentRef,
+    storageRef: h.storageRef,
+  })
+
+  assert.equal(analytics.trackUnknownPairRerolled({
+    round: 1,
+    rerollCount: 2,
+    categoryType: 'genre',
+    categoryValue: 'Pop',
+  }), true)
+
+  assert.deepEqual(events(h.windowRef)[0], [
+    'event',
+    'unknown_pair_rerolled',
+    {
+      round: 1,
+      reroll_count_for_match: 2,
+      category_type: 'genre',
+      category_value: 'Pop',
+    },
+  ])
+  assert.equal(events(h.windowRef).some(entry => entry[1] === 'vote_cast'), false)
+})

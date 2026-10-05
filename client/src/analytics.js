@@ -180,6 +180,20 @@ export function createAnalytics({
     })
   }
 
+  function trackUnknownPairRerolled({
+    round,
+    rerollCount,
+    categoryType,
+    categoryValue,
+  }) {
+    return emit('unknown_pair_rerolled', {
+      round: safeNumber(round),
+      reroll_count_for_match: safeNumber(rerollCount),
+      category_type: categoryType,
+      category_value: categoryValue,
+    })
+  }
+
   return {
     initialize,
     trackPageView,
@@ -187,6 +201,7 @@ export function createAnalytics({
     trackVoteCast,
     trackTournamentCompletedOnce,
     trackReplayStarted,
+    trackUnknownPairRerolled,
   }
 }
 
@@ -198,3 +213,6 @@ export const trackVoteCast = (...args) => analytics.trackVoteCast(...args)
 export const trackTournamentCompletedOnce = (...args) =>
   analytics.trackTournamentCompletedOnce(...args)
 export const trackReplayStarted = (...args) => analytics.trackReplayStarted(...args)
+
+export const trackUnknownPairRerolled = (...args) =>
+  analytics.trackUnknownPairRerolled(...args)

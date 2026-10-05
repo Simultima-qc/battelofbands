@@ -39,7 +39,9 @@ Choose one category
         ↓
 See two artists
         ↓
-Make one forced choice
+Know neither? Reroll the Round 1 pair
+        ↓
+Make one real preference choice
         ↓
 Advance the winner
         ↓
@@ -105,13 +107,16 @@ Every matchup asks one question:
 MVP rules:
 
 - one click/tap chooses the winner;
-- no skip;
 - no tie;
 - no rating scale;
 - no written explanation;
-- advance immediately to the next matchup.
+- advance immediately to the next matchup;
+- in an unresolved **Round 1** matchup only, the player may declare that neither artist is known and request a fresh pair;
+- an unknown-pair reroll is **not a vote** and does not advance progress, award a winner, or affect aggregate rankings;
+- replacement artists use the same category and weighted sampling policy, are distinct, and are not already present in the current tournament;
+- later-round rerolls are not allowed because they would rewrite earned bracket lineage.
 
-The interaction should feel closer to a rapid instinctive choice than a survey.
+The tournament still requires **15 real preference decisions** to complete. The interaction should feel closer to a rapid instinctive choice than a survey.
 
 ## End-of-session payoff
 
@@ -181,9 +186,10 @@ When product analytics are added, the MVP should be capable of measuring:
 - abandonment point / last completed round;
 - immediate replay;
 - category type;
-- category value.
+- category value;
+- unknown-pair rerolls.
 
-Those measurements will eventually answer whether 16 artists is the right session length.
+Those measurements will eventually answer whether 16 artists is the right session length and whether artist-recognition friction is material.
 
 Analytics implementation is not part of this issue.
 

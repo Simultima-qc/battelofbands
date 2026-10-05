@@ -326,6 +326,119 @@ class SQLiteStore {
     ).run(WINNER_BONUS, championId);
   }
 
+  async rerollMatch({
+    tournamentId,
+    matchId,
+    expectedArtist1Id,
+    expectedArtist2Id,
+    replacementArtist1Id,
+    replacementArtist2Id,
+  }) {
+    const db = this._db();
+    let applied = false;
+
+    const tx = db.transaction(() => {
+      const tournament = db
+        .prepare('SELECT * FROM tournaments WHERE id = ?')
+        .get(tournamentId);
+      if (!tournament) throw new HttpError(404, 'Tournament not found.');
+      if (tournament.status === 'completed') {
+        throw new HttpError(400, 'Tournament is already completed.');
+      }
+
+      const match = db
+        .prepare(`
+          SELECT * FROM tournament_matches
+          WHERE id = ? AND tournament_id = ?
+        `)
+        .get(matchId, tournamentId);
+
+      if (!match) throw new HttpError(404, 'Match not found in this tournament.');
+      if (Number(match.round) !== 1) {
+        throw new HttpError(400, 'Unknown-pair reroll is available only in round 1.');
+      }
+      if (match.winner_id) {
+        throw new HttpError(400, 'A played match cannot be rerolled.');
+      }
+
+      if (
+        match.artist1_id !== expectedArtist1Id ||
+        match.artist2_id !== expectedArtist2Id
+      ) {
+        return;
+      }
+
+      if (
+        !replacementArtist1Id ||
+        !replacementArtist2Id ||
+        replacementArtist1Id === replacementArtist2Id
+      ) {
+        throw new HttpError(400, 'Two distinct replacement artists are required.');
+      }
+
+      const replacements = db.prepare(`
+        SELECT id
+        FROM artists
+        WHERE id IN (?, ?)
+      `).all(replacementArtist1Id, replacementArtist2Id);
+
+      if (replacements.length !== 2) {
+        throw new HttpError(400, 'Replacement artist not found.');
+      }
+
+      const conflict = db.prepare(`
+        SELECT 1
+        FROM tournament_matches
+        WHERE tournament_id = ?
+          AND (
+            artist1_id IN (?, ?)
+            OR artist2_id IN (?, ?)
+          )
+        LIMIT 1
+      `).get(
+        tournamentId,
+        replacementArtist1Id,
+        replacementArtist2Id,
+        replacementArtist1Id,
+        replacementArtist2Id
+      );
+
+      if (conflict) {
+        throw new HttpError(
+          409,
+          'Replacement artists are no longer available.',
+          { code: 'REROLL_REPLACEMENT_CONFLICT' }
+        );
+      }
+
+      const updated = db.prepare(`
+        UPDATE tournament_matches
+        SET artist1_id = ?, artist2_id = ?
+        WHERE id = ?
+          AND tournament_id = ?
+          AND round = 1
+          AND winner_id IS NULL
+          AND artist1_id = ?
+          AND artist2_id = ?
+      `).run(
+        replacementArtist1Id,
+        replacementArtist2Id,
+        matchId,
+        tournamentId,
+        expectedArtist1Id,
+        expectedArtist2Id
+      );
+
+      applied = updated.changes === 1;
+    });
+
+    tx();
+    return {
+      applied,
+      state: await this.getTournamentState(tournamentId),
+    };
+  }
+
   async recordMatch({ tournamentId, matchId, winnerId }) {
     const db = this._db();
 
@@ -839,6 +952,107 @@ class PostgresStore {
       SET points = points + ${WINNER_BONUS}
       WHERE artist_id = ${championId}
     `;
+  }
+
+  async rerollMatch({
+    tournamentId,
+    matchId,
+    expectedArtist1Id,
+    expectedArtist2Id,
+    replacementArtist1Id,
+    replacementArtist2Id,
+  }) {
+    await this.ensureAlive();
+    let applied = false;
+
+    await this.sql.begin(async (tx) => {
+      const tournament = await this._getTournamentWith(tx, tournamentId, { lock: true });
+      if (!tournament) throw new HttpError(404, 'Tournament not found.');
+      if (tournament.status === 'completed') {
+        throw new HttpError(400, 'Tournament is already completed.');
+      }
+
+      const matches = await tx`
+        SELECT id, tournament_id, round, match_index, artist1_id, artist2_id,
+               winner_id, played_at
+        FROM battleofbands.tournament_matches
+        WHERE id = ${matchId} AND tournament_id = ${tournamentId}
+        FOR UPDATE
+      `;
+      const match = matches[0];
+
+      if (!match) throw new HttpError(404, 'Match not found in this tournament.');
+      if (Number(match.round) !== 1) {
+        throw new HttpError(400, 'Unknown-pair reroll is available only in round 1.');
+      }
+      if (match.winner_id) {
+        throw new HttpError(400, 'A played match cannot be rerolled.');
+      }
+
+      if (
+        match.artist1_id !== expectedArtist1Id ||
+        match.artist2_id !== expectedArtist2Id
+      ) {
+        return;
+      }
+
+      if (
+        !replacementArtist1Id ||
+        !replacementArtist2Id ||
+        replacementArtist1Id === replacementArtist2Id
+      ) {
+        throw new HttpError(400, 'Two distinct replacement artists are required.');
+      }
+
+      const replacements = await tx`
+        SELECT id
+        FROM battleofbands.artists
+        WHERE id IN (${replacementArtist1Id}, ${replacementArtist2Id})
+      `;
+
+      if (replacements.length !== 2) {
+        throw new HttpError(400, 'Replacement artist not found.');
+      }
+
+      const conflicts = await tx`
+        SELECT id
+        FROM battleofbands.tournament_matches
+        WHERE tournament_id = ${tournamentId}
+          AND (
+            artist1_id IN (${replacementArtist1Id}, ${replacementArtist2Id})
+            OR artist2_id IN (${replacementArtist1Id}, ${replacementArtist2Id})
+          )
+        LIMIT 1
+      `;
+
+      if (conflicts.length > 0) {
+        throw new HttpError(
+          409,
+          'Replacement artists are no longer available.',
+          { code: 'REROLL_REPLACEMENT_CONFLICT' }
+        );
+      }
+
+      const updated = await tx`
+        UPDATE battleofbands.tournament_matches
+        SET artist1_id = ${replacementArtist1Id},
+            artist2_id = ${replacementArtist2Id}
+        WHERE id = ${matchId}
+          AND tournament_id = ${tournamentId}
+          AND round = 1
+          AND winner_id IS NULL
+          AND artist1_id = ${expectedArtist1Id}
+          AND artist2_id = ${expectedArtist2Id}
+        RETURNING id
+      `;
+
+      applied = updated.length === 1;
+    });
+
+    return {
+      applied,
+      state: await this.getTournamentState(tournamentId),
+    };
   }
 
   async recordMatch({ tournamentId, matchId, winnerId }) {

@@ -5,9 +5,14 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { isActiveTournament } from '../lib/tournamentLifecycle'
 import { deriveTournamentProgress } from '../lib/tournamentProgress'
 import {
+  canRerollUnknownPair,
+  rerollErrorTranslationKey,
+} from '../lib/unknownPairReroll'
+import {
   trackReplayStarted,
   trackTournamentCompletedOnce,
   trackTournamentStarted,
+  trackUnknownPairRerolled,
   trackVoteCast,
 } from '../analytics'
 import Bracket from '../components/Bracket'
@@ -34,6 +39,7 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
   const [replaying, setReplaying] = useState(false)
   const [replayError, setReplayError] = useState(null)
   const previousStatusRef = useRef(null)
+  const rerollCountsRef = useRef(new Map())
 
   const loadTournament = useCallback(async () => {
     try {
@@ -94,6 +100,27 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
     } catch (e) {
       setError(e.message)
     }
+  }
+
+  async function handleUnknownPairReroll(match) {
+    const data = await api.rerollUnknownPair(id, match)
+
+    setTournament(data.tournament)
+    setBracket(data.bracket)
+
+    if (data.rerolled) {
+      const nextCount = (rerollCountsRef.current.get(match.id) || 0) + 1
+      rerollCountsRef.current.set(match.id, nextCount)
+
+      trackUnknownPairRerolled({
+        round: match.round,
+        rerollCount: nextCount,
+        categoryType: tournament?.category_type,
+        categoryValue: tournament?.category_value,
+      })
+    }
+
+    return data
   }
 
   function handleNewTournament() {
@@ -175,6 +202,7 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
             <CompactVote
               match={currentMatch}
               onVote={handleVote}
+              onUnknownPair={handleUnknownPairReroll}
               progress={progress}
               t={t}
             />
@@ -185,8 +213,10 @@ export default function TournamentPage({ sessionId, onEnd, onStart }) {
   )
 }
 
-function CompactVote({ match, onVote, progress, t }) {
+function CompactVote({ match, onVote, onUnknownPair, progress, t }) {
   const [voting, setVoting] = useState(false)
+  const [rerolling, setRerolling] = useState(false)
+  const [rerollError, setRerollError] = useState(null)
   const { artist1, artist2 } = match
 
   async function handleVote(artistId) {
@@ -194,6 +224,20 @@ function CompactVote({ match, onVote, progress, t }) {
     setVoting(true)
     await onVote(match.id, artistId)
     setVoting(false)
+  }
+
+  async function handleUnknownPair() {
+    if (voting || rerolling || !canRerollUnknownPair(match)) return
+    setRerolling(true)
+    setRerollError(null)
+
+    try {
+      await onUnknownPair(match)
+    } catch (error) {
+      setRerollError(t(rerollErrorTranslationKey(error?.code)))
+    } finally {
+      setRerolling(false)
+    }
   }
 
   return (
@@ -213,10 +257,26 @@ function CompactVote({ match, onVote, progress, t }) {
       <p className="compact-instruction">{t('match.instruction')}</p>
 
       <div className="compact-cards">
-        <CompactArtistBtn artist={artist1} onVote={handleVote} voting={voting} t={t} />
+        <CompactArtistBtn artist={artist1} onVote={handleVote} voting={voting || rerolling} t={t} />
         <div className="compact-vs">VS</div>
-        <CompactArtistBtn artist={artist2} onVote={handleVote} voting={voting} t={t} />
+        <CompactArtistBtn artist={artist2} onVote={handleVote} voting={voting || rerolling} t={t} />
       </div>
+
+      {canRerollUnknownPair(match) && (
+        <div className="compact-reroll-wrap">
+          <button
+            type="button"
+            className="compact-reroll"
+            onClick={handleUnknownPair}
+            disabled={voting || rerolling}
+          >
+            {rerolling ? t('match.reroll.loading') : t('match.reroll')}
+          </button>
+          {rerollError && (
+            <p className="compact-reroll-error" role="alert">{rerollError}</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
