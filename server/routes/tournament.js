@@ -34,6 +34,32 @@ function filterArtistPool(artists, categoryType, categoryValue) {
   return null;
 }
 
+function findTournamentMatch(state, matchId) {
+  return state?.bracket?.flat().find((match) => match.id === matchId) || null;
+}
+
+function buildRerollPool(allArtists, state) {
+  const tournament = state?.tournament;
+  if (!tournament) return [];
+
+  const categoryPool = filterArtistPool(
+    allArtists,
+    tournament.category_type,
+    tournament.category_value
+  );
+  if (!categoryPool) return [];
+
+  const usedIds = new Set(
+    (state.bracket || [])
+      .flat()
+      .flatMap((match) => [match.artist1_id, match.artist2_id])
+      .filter(Boolean)
+  );
+
+  return dedupeArtistsByName(categoryPool)
+    .filter((artist) => !usedIds.has(artist.id));
+}
+
 router.post('/start', asyncRoute(async (req, res) => {
   const {
     user_session,
@@ -100,6 +126,96 @@ router.get('/:id', asyncRoute(async (req, res) => {
   const state = await getStore().getTournamentState(req.params.id);
   if (!state) return res.status(404).json({ error: 'Tournament not found.' });
   res.json(state);
+}));
+
+router.post('/:id/match/reroll', asyncRoute(async (req, res) => {
+  const {
+    match_id,
+    expected_artist1_id,
+    expected_artist2_id,
+  } = req.body;
+
+  if (!match_id || !expected_artist1_id || !expected_artist2_id) {
+    return res.status(400).json({
+      error: 'match_id, expected_artist1_id and expected_artist2_id are required.',
+      code: 'REROLL_INVALID_REQUEST',
+    });
+  }
+
+  const store = getStore();
+  let state = await store.getTournamentState(req.params.id);
+  if (!state) return res.status(404).json({ error: 'Tournament not found.' });
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const match = findTournamentMatch(state, match_id);
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found in this tournament.' });
+    }
+    if (Number(match.round) !== 1) {
+      return res.status(400).json({
+        error: 'Unknown-pair reroll is available only in round 1.',
+        code: 'REROLL_ROUND_NOT_ALLOWED',
+      });
+    }
+    if (match.winner_id) {
+      return res.status(400).json({
+        error: 'A played match cannot be rerolled.',
+        code: 'REROLL_MATCH_ALREADY_PLAYED',
+      });
+    }
+
+    if (
+      match.artist1_id !== expected_artist1_id ||
+      match.artist2_id !== expected_artist2_id
+    ) {
+      return res.json({
+        ...state,
+        rerolled: false,
+        reason: 'already_rerolled',
+      });
+    }
+
+    const pool = buildRerollPool(await store.listArtists(), state);
+    if (pool.length < 2) {
+      return res.status(409).json({
+        error: 'No unused replacement pair is available for this category.',
+        code: 'REROLL_POOL_EXHAUSTED',
+      });
+    }
+
+    const [artist1, artist2] = weightedSampleWithoutReplacement(pool, 2);
+
+    try {
+      const result = await store.rerollMatch({
+        tournamentId: req.params.id,
+        matchId: match_id,
+        expectedArtist1Id: expected_artist1_id,
+        expectedArtist2Id: expected_artist2_id,
+        replacementArtist1Id: artist1.id,
+        replacementArtist2Id: artist2.id,
+      });
+
+      return res.json({
+        ...result.state,
+        rerolled: result.applied,
+        reason: result.applied ? undefined : 'already_rerolled',
+      });
+    } catch (error) {
+      if (
+        error?.status !== 409 ||
+        error?.code !== 'REROLL_REPLACEMENT_CONFLICT'
+      ) {
+        throw error;
+      }
+
+      state = await store.getTournamentState(req.params.id);
+    }
+  }
+
+  return res.status(409).json({
+    error: 'Replacement artists changed concurrently. Try again.',
+    code: 'REROLL_RETRY_REQUIRED',
+  });
 }));
 
 router.post('/:id/match', asyncRoute(async (req, res) => {
